@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${CODE_REVIEW_IMAGE:-ai-codereview-opencode:local}
+    image: ${CODE_REVIEW_IMAGE:-ai-codereview-agent:local}
     user: ${CODE_REVIEW_USER:-0:0}
     ports:
       - "5001:5001"
@@ -19,7 +19,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${CODE_REVIEW_IMAGE:-ai-codereview-opencode:local}
+    image: ${CODE_REVIEW_IMAGE:-ai-codereview-agent:local}
     user: ${CODE_REVIEW_USER:-0:0}
     command: [python, -m, biz.agent.worker]
     volumes:
