@@ -110,10 +110,19 @@ LLM_REVIEW_ENABLED=1  # 0关闭，1开启
 **2. 启动服务**
 
 ```bash
-docker compose --env-file conf/.env up --build -d
+docker compose --env-file conf/.env pull
+docker compose --env-file conf/.env up --no-build -d
 ```
 
-默认本地镜像标签为 `ai-codereview-agent:local`；如需使用旧标签，可通过 `CODE_REVIEW_IMAGE` 指定，详见 [worker operations](docs/operations/agent-worker.md#可选-compose-worker)。
+默认使用公开镜像 `ghcr.io/wufei-png/ai-codereview-agent:latest`；可通过 `CODE_REVIEW_IMAGE` 指定版本标签。如需从源码构建本地镜像：
+
+```bash
+CODE_REVIEW_IMAGE=ai-codereview-agent:local docker compose --env-file conf/.env up --build -d
+```
+
+推送 `vX.Y.Z` 版本标签后，发布工作流会先运行检查，再发布对应版本和 `latest` 镜像；普通的 `main` 更新不会发布新镜像。
+
+镜像版本及旧标签的兼容方法见 [worker operations](docs/operations/agent-worker.md#可选-compose-worker)。
 
 **3. 验证部署**
 
