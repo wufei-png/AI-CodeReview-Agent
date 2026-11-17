@@ -42,6 +42,8 @@ docker compose --env-file conf/.env --profile agent run --rm agent-worker python
 
 第二个命令同时启动 app 与 worker。它们共用 `data/`（SQLite 与 workspace）和 `log/` bind mounts。`--env-file` 同时用于 Compose interpolation；`CODE_REVIEW_ENV_FILE` 可更换 service env 文件，`CODE_REVIEW_IMAGE` 可选镜像，`CODE_REVIEW_USER=1000:1000` 可选 UID/GID。默认兼容现有 `0:0`，Supervisor 不强制 root。非 root 运行前由操作者创建并设置 bind mount ownership；在 Linux 上使用实际执行账户 UID/GID，在 macOS 上核对 Docker 共享目录权限。
 
+Compose 默认本地镜像标签为 `ai-codereview-agent:local`。如果已有脚本依赖旧标签 `ai-codereview-opencode:local`，可设置 `CODE_REVIEW_IMAGE=ai-codereview-opencode:local` 继续使用，或将脚本更新为新标签。
+
 Compose 的 worker 默认 endpoint 为 `http://host.docker.internal:4096`，并配置 host-gateway。**该默认值只解决网络地址**：宿主 Serve 看不到容器的 `/app/data/...`，必须额外映射双方一致的绝对 job 路径。可以将 worker 与独立 Serve 容器的 job 目录均挂载到 `/app/data/agent-worktrees`，或配置宿主与容器相同的 `AGENT_WORKTREE_PARENT` 并添加对应 bind mount。`conf/agent_repos.yml` 如需覆盖也要显式挂载到两个 app/worker 配置路径。不要把宿主 credential 复制到镜像。
 
 ## 停止与恢复
@@ -62,10 +64,10 @@ DB 终态记录默认保留 90 天；未知执行的保留目录不会被 DB ret
 ## 本地离线容器验证
 
 ```bash
-docker build -t ai-codereview-opencode:reliability-check .
+docker build -t ai-codereview-agent:reliability-check .
 docker run --rm --network none --user 1000:1000 \
   --tmpfs /app/log:uid=1000,gid=1000 --tmpfs /app/data:uid=1000,gid=1000 \
-  -i ai-codereview-opencode:reliability-check python - < scripts/smoke_worker.py
+  -i ai-codereview-agent:reliability-check python - < scripts/smoke_worker.py
 ```
 
 脚本用临时 DB、fake executor 验证 claim/finish 和 Agent-only API import/config check，不消费生产 queue，不调用 provider/model。它证明基础镜像与非 root 本地执行条件，不证明真实模型/CLI/Serve 发布。

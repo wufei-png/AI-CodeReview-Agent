@@ -113,6 +113,8 @@ LLM_REVIEW_ENABLED=1  # 0关闭，1开启
 docker compose --env-file conf/.env up --build -d
 ```
 
+默认本地镜像标签为 `ai-codereview-agent:local`；如需使用旧标签，可通过 `CODE_REVIEW_IMAGE` 指定，详见 [worker operations](docs/operations/agent-worker.md#可选-compose-worker)。
+
 **3. 验证部署**
 
 - 主服务验证：

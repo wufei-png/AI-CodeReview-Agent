@@ -1,7 +1,7 @@
 [project]
-name = "ai-codereview-gitlab"
+name = "ai-codereview-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automated code review for GitLab, GitHub, and Gitea with multiple agent backends."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
