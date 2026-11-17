@@ -1,6 +1,6 @@
 ![Push图片](doc/img/open/ai-codereview-cartoon.png)
 
-# AI-Codereview-Gitlab-Opencode
+# AI-CodeReview-Agent
 
 基于 [sunmh207/AI-Codereview-Gitlab](https://github.com/sunmh207/AI-Codereview-Gitlab) 演进的 Agent Review 版本，保留原有多平台 AI Code Review 能力，支持 OpenCode Serve、Codex CLI、Claude CLI 和 Pi CLI 四种显式后端，并提供 Webhook 自动触发、SQLite 持久化队列、隔离 worktree、完整/增量审查、自动修复及交付回执。
 
@@ -66,8 +66,8 @@ Note 中，便于团队查看和处理。
 
 - 克隆项目仓库：
 ```aiignore
-git clone https://github.com/wufei-png/AI-Codereview-Gitlab-Opencode.git
-cd AI-Codereview-Gitlab-Opencode
+git clone https://github.com/wufei-png/AI-CodeReview-Agent.git
+cd AI-CodeReview-Agent
 ```
 
 - 创建配置文件：
@@ -127,8 +127,8 @@ docker compose --env-file conf/.env up --build -d
 **1. 获取源码**
 
 ```bash
-git clone https://github.com/wufei-png/AI-Codereview-Gitlab-Opencode.git
-cd AI-Codereview-Gitlab-Opencode
+git clone https://github.com/wufei-png/AI-CodeReview-Agent.git
+cd AI-CodeReview-Agent
 ```
 
 **2. 安装依赖**
@@ -370,4 +370,4 @@ curl -fsSL https://raw.githubusercontent.com/sunmh207/AI-Codereview-Gitlab/refs/
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wufei-png/AI-Codereview-Gitlab-Opencode&type=Timeline)](https://www.star-history.com/#wufei-png/AI-Codereview-Gitlab-Opencode&Timeline)
+[![Star History Chart](https://api.star-history.com/svg?repos=wufei-png/AI-CodeReview-Agent&type=Timeline)](https://www.star-history.com/#wufei-png/AI-CodeReview-Agent&Timeline)
