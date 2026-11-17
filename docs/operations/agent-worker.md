@@ -35,14 +35,15 @@ python -m biz.agent.worker
 ```bash
 # conf/.env 中的 OPENCODE_API_URL 在容器内应指向实际 Serve，不能用宿主的 127.0.0.1。
 # 例如 http://host.docker.internal:4096，或共享网络中的 Serve service 名。
-docker compose --env-file conf/.env up --build -d
-docker compose --env-file conf/.env --profile agent up --build -d
+docker compose --env-file conf/.env --profile agent pull
+docker compose --env-file conf/.env up --no-build -d
+docker compose --env-file conf/.env --profile agent up --no-build -d
 docker compose --env-file conf/.env --profile agent run --rm agent-worker python -m biz.agent.worker --check
 ```
 
-第二个命令同时启动 app 与 worker。它们共用 `data/`（SQLite 与 workspace）和 `log/` bind mounts。`--env-file` 同时用于 Compose interpolation；`CODE_REVIEW_ENV_FILE` 可更换 service env 文件，`CODE_REVIEW_IMAGE` 可选镜像，`CODE_REVIEW_USER=1000:1000` 可选 UID/GID。默认兼容现有 `0:0`，Supervisor 不强制 root。非 root 运行前由操作者创建并设置 bind mount ownership；在 Linux 上使用实际执行账户 UID/GID，在 macOS 上核对 Docker 共享目录权限。
+第三个命令同时启动 app 与 worker。它们共用 `data/`（SQLite 与 workspace）和 `log/` bind mounts。`--env-file` 同时用于 Compose interpolation；`CODE_REVIEW_ENV_FILE` 可更换 service env 文件，`CODE_REVIEW_IMAGE` 可选镜像，`CODE_REVIEW_USER=1000:1000` 可选 UID/GID。默认兼容现有 `0:0`，Supervisor 不强制 root。非 root 运行前由操作者创建并设置 bind mount ownership；在 Linux 上使用实际执行账户 UID/GID，在 macOS 上核对 Docker 共享目录权限。
 
-Compose 默认本地镜像标签为 `ai-codereview-agent:local`。如果已有脚本依赖旧标签 `ai-codereview-opencode:local`，可设置 `CODE_REVIEW_IMAGE=ai-codereview-opencode:local` 继续使用，或将脚本更新为新标签。
+Compose 默认拉取 `ghcr.io/wufei-png/ai-codereview-agent:latest`，也可用 `CODE_REVIEW_IMAGE=ghcr.io/wufei-png/ai-codereview-agent:0.1.0` 固定版本。若从源码构建，设置 `CODE_REVIEW_IMAGE=ai-codereview-agent:local` 并在 `up` 时使用 `--build`。如果已有脚本依赖旧标签 `ai-codereview-opencode:local`，可设置 `CODE_REVIEW_IMAGE=ai-codereview-opencode:local` 并从源码构建。
 
 Compose 的 worker 默认 endpoint 为 `http://host.docker.internal:4096`，并配置 host-gateway。**该默认值只解决网络地址**：宿主 Serve 看不到容器的 `/app/data/...`，必须额外映射双方一致的绝对 job 路径。可以将 worker 与独立 Serve 容器的 job 目录均挂载到 `/app/data/agent-worktrees`，或配置宿主与容器相同的 `AGENT_WORKTREE_PARENT` 并添加对应 bind mount。`conf/agent_repos.yml` 如需覆盖也要显式挂载到两个 app/worker 配置路径。不要把宿主 credential 复制到镜像。
 
