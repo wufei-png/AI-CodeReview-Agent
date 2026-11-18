@@ -2003,7 +2003,7 @@ Expected: They each subclass `BaseClient` and have a `completions()` method.
 
 - [ ] **Step 2: Add `chat_with_tools` to each**
 
-For each of the three files, add the following method after the existing `completions()` method. Use the same body — it is identical because all three use the OpenAI SDK or an OpenAI-compatible surface:
+For each of the three files, insert the following method **inside the corresponding client class, immediately after the existing `completions()` method**, and indent every line by four spaces so it becomes a class method. The snippet is shown at top level only so the formatter can parse it; do not paste it at module level. Use the same body — it is identical because all three use the OpenAI SDK or an OpenAI-compatible surface:
 
 ```python
 def chat_with_tools(
