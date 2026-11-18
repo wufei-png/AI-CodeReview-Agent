@@ -59,7 +59,7 @@ class LLMAdapter:
             )
             # Some clients have chat_with_tools but it's the base NotImpl — detect by checking override.
             if use_native:
-                method = getattr(client, "chat_with_tools")
+                method = client.chat_with_tools
                 # Heuristic: if the method is the base class's, fall back.
                 # We can detect this by checking if calling it raises NotImplementedError on a stub.
                 try:

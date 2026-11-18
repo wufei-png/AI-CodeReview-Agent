@@ -111,7 +111,7 @@ class RepositoryResolver:
             return None
         longest = max(len(item[2]) for item in matched)
         candidates: list[Path] = []
-        for configured_remote, root, key_parts in matched:
+        for _configured_remote, root, key_parts in matched:
             if len(key_parts) != longest:
                 continue
             suffix = wanted_parts[len(key_parts) :]

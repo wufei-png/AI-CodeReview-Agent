@@ -14,11 +14,11 @@ def repo(tmp_path):
 
 def _tool(repo, **overrides):
     """Build a tool with permissive defaults unless overridden."""
-    defaults = dict(
-        allowlist=["ls", "cat", "echo", "rg", "grep", "find"],
-        blocklist=["rm", "curl"],
-        timeout=5,
-    )
+    defaults = {
+        "allowlist": ["ls", "cat", "echo", "rg", "grep", "find"],
+        "blocklist": ["rm", "curl"],
+        "timeout": 5,
+    }
     defaults.update(overrides)
     return RunCommandTool(repo, **defaults)
 

@@ -55,7 +55,13 @@ def test_event_key_ignores_action_but_includes_target_revision():
 
 def test_queue_supersedes_queued_revision_and_serializes_review_url(tmp_path):
     store = AgentJobStore(tmp_path / "jobs.db")
-    common = dict(provider="github", review_url="https://github.com/o/r/pull/1", backend="codex", source_branch="f", target_branch="main")
+    common = {
+        "provider": "github",
+        "review_url": "https://github.com/o/r/pull/1",
+        "backend": "codex",
+        "source_branch": "f",
+        "target_branch": "main",
+    }
     assert store.enqueue(key="old", request_json='{"old": true}', **common)
     assert store.enqueue(key="new", request_json='{"new": true}', **common)
     row = store.claim_next()
@@ -70,7 +76,13 @@ def test_queue_supersedes_queued_revision_and_serializes_review_url(tmp_path):
 
 def test_confirmed_receipt_gates_previous_delivery_state(tmp_path):
     store = AgentJobStore(tmp_path / "jobs.db")
-    kwargs = dict(provider="gitlab", review_url="https://gitlab.example/p/-/merge_requests/1", backend="pi", source_branch="f", target_branch="main")
+    kwargs = {
+        "provider": "gitlab",
+        "review_url": "https://gitlab.example/p/-/merge_requests/1",
+        "backend": "pi",
+        "source_branch": "f",
+        "target_branch": "main",
+    }
     store.enqueue(key="one", request_json="{}", **kwargs)
     store.claim_next()
     assert store.set_revisions("one", source_revision="S1", target_revision="T1")
@@ -90,10 +102,14 @@ def test_confirmed_receipt_gates_previous_delivery_state(tmp_path):
 
 def test_resolved_revision_deduplication_only_uses_latest_confirmed_snapshot(tmp_path):
     store = AgentJobStore(tmp_path / "jobs.db")
-    common = dict(
-        provider="gitlab", review_url="https://gitlab.example/p/-/merge_requests/1",
-        backend="pi", source_branch="f", target_branch="main", request_json="{}",
-    )
+    common = {
+        "provider": "gitlab",
+        "review_url": "https://gitlab.example/p/-/merge_requests/1",
+        "backend": "pi",
+        "source_branch": "f",
+        "target_branch": "main",
+        "request_json": "{}",
+    }
 
     def confirm(key, source, target, completed_at):
         assert store.enqueue(key=key, **common)

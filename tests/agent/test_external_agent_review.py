@@ -164,7 +164,13 @@ def test_shared_skill_requires_stacked_autofix_target():
 
 def test_job_store_skips_completed_and_allows_failed_retry(tmp_path):
     store = AgentJobStore(tmp_path / "jobs.db")
-    kwargs = dict(key="key", provider="gitlab", review_url="https://gitlab.example.com/p/-/merge_requests/1", backend="codex", source_branch="main")
+    kwargs = {
+        "key": "key",
+        "provider": "gitlab",
+        "review_url": "https://gitlab.example.com/p/-/merge_requests/1",
+        "backend": "codex",
+        "source_branch": "main",
+    }
     assert store.claim(**kwargs)
     assert not store.claim(**kwargs)
     store.finish("key", status="failed", error="temporary")
@@ -175,7 +181,13 @@ def test_job_store_skips_completed_and_allows_failed_retry(tmp_path):
 
 def test_job_store_reclaims_stale_running_job(tmp_path):
     store = AgentJobStore(tmp_path / "jobs.db")
-    kwargs = dict(key="stale", provider="gitlab", review_url="https://gitlab.example.com/p/-/merge_requests/1", backend="codex", source_branch="main")
+    kwargs = {
+        "key": "stale",
+        "provider": "gitlab",
+        "review_url": "https://gitlab.example.com/p/-/merge_requests/1",
+        "backend": "codex",
+        "source_branch": "main",
+    }
     assert store.claim(**kwargs, lease_seconds=3600)
     with sqlite3.connect(tmp_path / "jobs.db") as conn:
         conn.execute("UPDATE agent_review_jobs SET updated_at = ? WHERE idempotency_key = ?", ("2000-01-01T00:00:00+00:00", "stale"))

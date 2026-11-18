@@ -39,7 +39,7 @@ class BaseReviewer(abc.ABC):
                 }
         except (FileNotFoundError, KeyError, yaml.YAMLError) as e:
             logger.error(f"加载提示词配置失败: {e}")
-            raise Exception(f"提示词配置加载失败: {e}")
+            raise Exception(f"提示词配置加载失败: {e}") from e
 
     def call_llm(self, messages: List[Dict[str, Any]]) -> str:
         """调用 LLM 进行代码审核"""
