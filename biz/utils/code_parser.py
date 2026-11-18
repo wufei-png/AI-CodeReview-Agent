@@ -1,6 +1,3 @@
-import re
-
-
 class GitDiffParser:
     def __init__(self, diff_string):
         self.diff_string = diff_string

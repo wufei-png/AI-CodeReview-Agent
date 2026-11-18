@@ -13,7 +13,7 @@ class DirectoryReviewFunc(LLMReviewFunc):
     对项目的目录结构进行审查的功能。
     """
     SUPPORTED_LANGUAGES = ["python", "java", "php", "vue"]
-    SYSTEM_PROMPT = f"""
+    SYSTEM_PROMPT = """
         你是一位资深的软件架构师，本次任务是对一个代码库进行审查，具体要求如下：
         ### 具体要求：
         1.组织逻辑：评估目录结构是否清晰，是否符合常见的项目组织规范（如MVC、分层架构等）。

@@ -54,7 +54,7 @@ def check_llm_provider():
 
 def check_llm_connectivity():
     client = Factory().getClient()
-    logger.info(f"正在检查 LLM 供应商的连接...")
+    logger.info("正在检查 LLM 供应商的连接...")
     if client.ping():
         logger.info("LLM 可以连接成功。")
     else:

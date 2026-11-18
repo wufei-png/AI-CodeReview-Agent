@@ -63,7 +63,7 @@ class ReviewService:
                         "default": "''"
                     }
                 ]
-                cursor.execute(f"PRAGMA table_info('mr_review_log')")
+                cursor.execute("PRAGMA table_info('mr_review_log')")
                 current_columns = [col[1] for col in cursor.fetchall()]
                 for column in mr_columns:
                     if column.get("name") not in current_columns:

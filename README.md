@@ -298,9 +298,9 @@ Lease heartbeat 失败或 token 丢失会触发该 job 的 backend 取消；未�
 
 ## 验证与发布
 
-PR/main CI 安装 `requirements.txt`，运行 Python 3.11/3.12 pytest 与 Agent coverage 报告，并 build Docker 镜像，断网执行非 root、临时 DB、fake backend smoke。`v*` tag 的镜像发布先调用同一 SHA 的 CI gate，通过后才取得 packages 写权限。外部 Actions 固定到已核实的 commit SHA。该门禁不证明真实 CLI/模型/平台发布；这需要另行在测试仓库和已认证身份上验证。
+PR/main CI 先用固定 Ruff 0.16.5 对 `biz` 与 `tests` 执行 E4/E7/E9/F 非写入静态检查，再安装 `requirements.txt`，运行 Python 3.11/3.12 pytest 与 Agent coverage 报告，并 build Docker 镜像，断网执行非 root、临时 DB、fake backend smoke。`v*` tag 的镜像发布先调用同一 SHA 的 CI gate，通过后才取得 packages 写权限。外部 Actions 固定到已核实的 commit SHA。该门禁不证明真实 CLI/模型/平台发布；这需要另行在测试仓库和已认证身份上验证。
 
-本地检查：`python -m pytest -q --cov=biz.agent --cov-report=term-missing`。Docker smoke 命令见 operations。当前 pyproject 的依赖列表为空，`uv.lock` 不代替运行依赖；使用 requirements 安装。本轮保留内置 LLM/agentic 的非持久化 multiprocessing queue，External Agent 才使用 SQLite durable queue；没有额外 replay ledger。
+本地检查：`ruff check --select E4,E7,E9,F biz tests` 与 `python -m pytest -q --cov=biz.agent --cov-report=term-missing`。Docker smoke 命令见 operations。当前 pyproject 的依赖列表为空，`uv.lock` 不代替运行依赖；使用 requirements 安装。本轮保留内置 LLM/agentic 的非持久化 multiprocessing queue，External Agent 才使用 SQLite durable queue；没有额外 replay ledger。
 
 当前能力、已完成阶段与延后需求见 [provider matrix](docs/providers/capability-matrix.md)、[ADR-0007](docs/adr/0007-trusted-agent-reliability-boundary.md) 和 [实施记录](docs/plans/2026-09-30-reliability-implementation-plan.md)。
 

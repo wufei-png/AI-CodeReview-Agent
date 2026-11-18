@@ -12,7 +12,7 @@ class BranchReviewFunc(LLMReviewFunc):
     """
     对代码分支进行审查。
     """
-    SYSTEM_PROMPT = f"""
+    SYSTEM_PROMPT = """
         你是一位资深的软件架构师，本次任务是对一个代码库的分支名称进行审查，具体要求如下：
         
         ### 具体要求：

@@ -14,10 +14,12 @@ from biz.utils.environment import load_project_environment
 
 load_project_environment()
 
-from biz.agent.backends import reset_backend_shutdown, terminate_active_backends
-from biz.agent.config import AgentReviewConfig, load_agent_review_config
-from biz.agent.job_store import AgentJobStore
-from biz.agent.service import execute_claimed_job, reap_agent_review_workspaces
+# Agent modules import configuration at module load time, so they must come
+# after the project environment has been loaded.
+from biz.agent.backends import reset_backend_shutdown, terminate_active_backends  # noqa: E402
+from biz.agent.config import AgentReviewConfig, load_agent_review_config  # noqa: E402
+from biz.agent.job_store import AgentJobStore  # noqa: E402
+from biz.agent.service import execute_claimed_job, reap_agent_review_workspaces  # noqa: E402
 
 
 def check_worker_configuration(config: AgentReviewConfig | None = None) -> dict[str, object]:

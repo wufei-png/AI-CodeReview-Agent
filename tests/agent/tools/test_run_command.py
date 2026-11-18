@@ -1,4 +1,3 @@
-import os
 import pytest
 
 from biz.agent.tools.run_command import RunCommandTool

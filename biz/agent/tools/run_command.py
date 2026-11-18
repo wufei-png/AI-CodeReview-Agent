@@ -1,7 +1,6 @@
 """run_command tool: sandboxed shell execution within the repo."""
 from __future__ import annotations
 
-import os
 import re
 import shlex
 import subprocess

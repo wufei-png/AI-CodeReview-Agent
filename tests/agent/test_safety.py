@@ -5,7 +5,6 @@ import pytest
 from biz.agent.safety import (
     is_path_safe,
     is_sensitive_path,
-    SENSITIVE_PATH_PATTERNS,
 )
 
 

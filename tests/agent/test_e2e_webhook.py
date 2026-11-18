@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import pytest
-
 from biz.queue.worker import _review_with_strategy
 
 

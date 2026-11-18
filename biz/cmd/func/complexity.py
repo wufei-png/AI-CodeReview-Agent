@@ -1,4 +1,3 @@
-import os
 from heapq import nlargest
 from pathlib import Path
 

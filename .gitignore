@@ -27,3 +27,4 @@ data/agent_review_jobs.db
 # Test coverage artifact
 .coverage
 .pytest_cache/
+.ruff_cache/

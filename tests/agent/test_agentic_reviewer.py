@@ -1,10 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from biz.agent.agentic_reviewer import AgenticReviewer
-from biz.agent.llm_adapter import LLMResponse, ToolCall
 from biz.utils.code_reviewer import CodeReviewer
 
 

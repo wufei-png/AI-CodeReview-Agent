@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import logging
 import pytest
 
-from biz.agent.llm_adapter import LLMAdapter, LLMResponse, ToolCall
+from biz.agent.llm_adapter import LLMAdapter
 from biz.agent.runner import AgentRunner
 from biz.agent.tool import Tool, ToolResult
 from biz.agent.tool_registry import ToolRegistry
@@ -112,7 +112,6 @@ class TestAgentRunner:
 
     def test_three_empty_rounds_raises_streak(self):
         # Three rounds with neither content nor tool_calls.
-        from biz.agent.runner import InvalidToolCallStreak
         responses = [
             {"content": None, "tool_calls": [], "raw": None},
             {"content": "", "tool_calls": [], "raw": None},

@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from biz.agent.tool import ToolResult
-from biz.utils.log import logger
 
 
 @dataclass

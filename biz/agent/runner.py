@@ -73,7 +73,7 @@ class AgentRunner:
                         empty_streak += 1
                         if empty_streak >= 3:
                             raise InvalidToolCallStreak(
-                                f"3 consecutive empty rounds from LLM"
+                                "3 consecutive empty rounds from LLM"
                             )
                         continue
                     return resp.content or last_assistant_content or ""

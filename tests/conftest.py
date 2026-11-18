@@ -1,4 +1,3 @@
-import os
 import subprocess
 from pathlib import Path
 
@@ -51,7 +50,7 @@ def mock_llm_response():
     """Factory for building fake LLMResponse objects."""
 
     def _make(content=None, tool_calls=None, raw=None):
-        from biz.agent.llm_adapter import LLMResponse, ToolCall
+        from biz.agent.llm_adapter import LLMResponse
 
         return LLMResponse(content=content, tool_calls=tool_calls or [], raw=raw)
 

@@ -1,7 +1,4 @@
 import json
-from unittest.mock import MagicMock
-
-import pytest
 
 from biz.agent.llm_adapter import LLMAdapter, LLMResponse, ToolCall
 

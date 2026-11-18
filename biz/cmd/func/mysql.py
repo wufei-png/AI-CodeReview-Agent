@@ -7,7 +7,7 @@ from biz.cmd.func.base import LLMReviewFunc
 
 
 class MySQLReviewFunc(LLMReviewFunc):
-    SYSTEM_PROMPT = f"""
+    SYSTEM_PROMPT = """
         你是一个经验丰富的数据库架构专家，擅长MySQL数据库设计评审和性能优化。你在评审数据库结构时会从以下角度进行系统性的分析并提出可操作的建议：
         1. 表结构设计（命名规范、主键设置、字段设计等）
         2. 字段类型是否合理（如金额使用DECIMAL、避免TEXT/BLOB滥用等）
@@ -77,9 +77,9 @@ class MySQLReviewFunc(LLMReviewFunc):
             with conn.cursor() as cursor:
                 # 获取所有表（根据通配符过滤）
                 if self.pattern:
-                    cursor.execute(f"SHOW TABLES LIKE %s", (self.pattern,))
+                    cursor.execute("SHOW TABLES LIKE %s", (self.pattern,))
                 else:
-                    cursor.execute(f"SHOW TABLES")
+                    cursor.execute("SHOW TABLES")
 
                 table_column_name = cursor.description[0][0]
                 tables = [row[table_column_name] for row in cursor.fetchall()]
@@ -94,7 +94,7 @@ class MySQLReviewFunc(LLMReviewFunc):
                     columns_info = cursor.fetchall()
 
                     # 获取主键信息
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT COLUMN_NAME
                         FROM information_schema.KEY_COLUMN_USAGE
                         WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND CONSTRAINT_NAME = 'PRIMARY'
@@ -102,7 +102,7 @@ class MySQLReviewFunc(LLMReviewFunc):
                     primary_keys = {row['COLUMN_NAME'] for row in cursor.fetchall()}
 
                     # 获取外键信息
-                    cursor.execute(f"""
+                    cursor.execute("""
                         SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
                         FROM information_schema.KEY_COLUMN_USAGE
                         WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND REFERENCED_TABLE_NAME IS NOT NULL

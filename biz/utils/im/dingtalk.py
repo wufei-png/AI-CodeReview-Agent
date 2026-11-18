@@ -103,4 +103,4 @@ class DingTalkNotifier:
             else:
                 logger.error(f"钉钉消息发送失败! webhook_url:{post_url},errmsg:{response_data.get('errmsg')}")
         except Exception as e:
-            logger.error(f"钉钉消息发送失败! ", e)
+            logger.error("钉钉消息发送失败! ", e)
