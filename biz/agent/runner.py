@@ -1,4 +1,5 @@
 """Multi-turn agent loop."""
+
 from __future__ import annotations
 
 import os
@@ -56,13 +57,18 @@ class AgentRunner:
                     messages=messages,
                     tools=self.registry.list_schemas(),
                 )
-                logger.info("agent round %d: tool_calls=%d content_len=%d",
-                            i, len(resp.tool_calls), len(resp.content or ""))
+                logger.info(
+                    "agent round %d: tool_calls=%d content_len=%d",
+                    i,
+                    len(resp.tool_calls),
+                    len(resp.content or ""),
+                )
                 # DEBUG: dump full per-round detail (assistant content + tool
                 # name/args) for post-mortem greppability. Stays silent at INFO.
                 logger.debug(
                     "agent round %d detail: content=%r tool_calls=%s",
-                    i, resp.content,
+                    i,
+                    resp.content,
                     [{"name": tc.name, "args": tc.arguments} for tc in resp.tool_calls],
                 )
                 if resp.content:
@@ -84,7 +90,9 @@ class AgentRunner:
                     result = self.registry.dispatch(call)
                     # Truncate tool output to bound message size.
                     if result.success and self.tool_output_max_tokens > 0:
-                        truncated = truncate_text_by_tokens(result.output, self.tool_output_max_tokens)
+                        truncated = truncate_text_by_tokens(
+                            result.output, self.tool_output_max_tokens
+                        )
                         if truncated != result.output:
                             result = result.__class__(
                                 success=True,
@@ -98,7 +106,10 @@ class AgentRunner:
                         raise TokenBudgetExceeded(
                             f"token estimate {usage} exceeds cap {self.total_token_cap}"
                         )
-            return last_assistant_content or f"max iterations ({self.max_iterations}) reached without final response"
+            return (
+                last_assistant_content
+                or f"max iterations ({self.max_iterations}) reached without final response"
+            )
         finally:
             if out is not None:
                 out["iterations"] = iterations_used

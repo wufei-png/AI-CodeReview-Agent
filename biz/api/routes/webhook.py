@@ -142,7 +142,9 @@ def handle_gitlab_webhook(data):
     if object_kind == "merge_request":
         # 异步触发显式配置的外部 Agent backend。
         if is_agent_review_enabled():
-            handle_agent_queue(dispatch_agent_review, "gitlab", data, gitlab_url=gitlab_url)
+            handle_agent_queue(
+                dispatch_agent_review, "gitlab", data, gitlab_url=gitlab_url
+            )
 
         # 创建一个新进程进行异步处理
         _queue_builtin(
@@ -156,7 +158,9 @@ def handle_gitlab_webhook(data):
         ), 200
     elif object_kind == "push":
         # 创建一个新进程进行异步处理
-        _queue_builtin(handle_push_event, data, gitlab_token, gitlab_url, gitlab_url_slug)
+        _queue_builtin(
+            handle_push_event, data, gitlab_token, gitlab_url, gitlab_url_slug
+        )
         # 立马返回响应
         return jsonify(
             {

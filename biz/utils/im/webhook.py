@@ -9,8 +9,10 @@ class ExtraWebhookNotifier:
         初始化ExtraWebhook通知器
         :param webhook_url: 自定义webhook地址
         """
-        self.default_webhook_url = webhook_url or os.environ.get('EXTRA_WEBHOOK_URL', '')
-        self.enabled = os.environ.get('EXTRA_WEBHOOK_ENABLED', '0') == '1'
+        self.default_webhook_url = webhook_url or os.environ.get(
+            "EXTRA_WEBHOOK_URL", ""
+        )
+        self.enabled = os.environ.get("EXTRA_WEBHOOK_ENABLED", "0") == "1"
 
     def send_message(self, system_data: dict, webhook_data: dict):
         """
@@ -23,18 +25,17 @@ class ExtraWebhookNotifier:
             return
 
         try:
-            data = {
-                "ai_codereview_data": system_data,
-                "webhook_data": webhook_data
-            }
+            data = {"ai_codereview_data": system_data, "webhook_data": webhook_data}
             response = requests.post(
                 url=self.default_webhook_url,
                 json=data,
-                headers={'Content-Type': 'application/json'}
+                headers={"Content-Type": "application/json"},
             )
 
             if response.status_code != 200:
-                logger.error(f"ExtraWebhook消息发送失败! webhook_url:{self.default_webhook_url}, error_msg:{response.text}")
+                logger.error(
+                    f"ExtraWebhook消息发送失败! webhook_url:{self.default_webhook_url}, error_msg:{response.text}"
+                )
                 return
 
         except Exception as e:

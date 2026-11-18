@@ -1,11 +1,13 @@
 """Path sandboxing and sensitive path detection for agent tools."""
+
 import re
 from pathlib import Path
 
 # Patterns matched anywhere in the path (case-sensitive on POSIX).
 # Each entry is a regex compiled at import time.
 SENSITIVE_PATH_PATTERNS: tuple[re.Pattern, ...] = tuple(
-    re.compile(p) for p in (
+    re.compile(p)
+    for p in (
         r"(^|/)(\.env|\.env\.[^/]+)$",
         r"(^|/)id_rsa(\.pub)?$",
         r"(^|/)\.git/",

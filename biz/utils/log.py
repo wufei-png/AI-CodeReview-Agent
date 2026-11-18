@@ -2,6 +2,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+
 # 自定义 Logger 类，重写 warn 和 error 方法
 class CustomLogger(logging.Logger):
     def warn(self, msg, *args, **kwargs):
@@ -24,17 +25,25 @@ LOG_LEVEL = getattr(logging, log_level.upper(), logging.INFO)
 
 file_handler = RotatingFileHandler(
     filename=log_file,
-    mode='a',
+    mode="a",
     maxBytes=log_max_bytes,
     backupCount=log_backup_count,
-    encoding='utf-8',
-    delay=False
+    encoding="utf-8",
+    delay=False,
 )
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s'))
+file_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s"
+    )
+)
 file_handler.setLevel(LOG_LEVEL)
 
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s'))
+console_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s"
+    )
+)
 console_handler.setLevel(LOG_LEVEL)
 
 

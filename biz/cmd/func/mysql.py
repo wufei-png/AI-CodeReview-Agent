@@ -26,7 +26,9 @@ class MySQLReviewFunc(LLMReviewFunc):
 
         def input_with_default(prompt, default=None, required=True, cast_func=None):
             while True:
-                value = input(f"{prompt}{f' (默认: {default})' if default else ''}: ").strip()
+                value = input(
+                    f"{prompt}{f' (默认: {default})' if default else ''}: "
+                ).strip()
                 if not value:
                     if default is not None:
                         return default
@@ -47,7 +49,10 @@ class MySQLReviewFunc(LLMReviewFunc):
         self.user = input_with_default("请输入数据库用户名", default="root")
         self.password = input_with_default("请输入数据库密码", required=True)
         self.database = input_with_default("请输入数据库名称", required=True)
-        self.pattern = input_with_default("请输入表名通配符 (支持LIKE语法，如 user%、log_%)，留空表示全部表", required=False)
+        self.pattern = input_with_default(
+            "请输入表名通配符 (支持LIKE语法，如 user%、log_%)，留空表示全部表",
+            required=False,
+        )
 
     def get_prompts(self, text: str) -> List[Dict[str, Any]]:
         self.user_prompt = f"""
@@ -67,8 +72,8 @@ class MySQLReviewFunc(LLMReviewFunc):
             user=self.user,
             password=self.password,
             db=self.database,
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
         )
 
         schema = {"tables": []}
@@ -94,45 +99,51 @@ class MySQLReviewFunc(LLMReviewFunc):
                     columns_info = cursor.fetchall()
 
                     # 获取主键信息
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT COLUMN_NAME
                         FROM information_schema.KEY_COLUMN_USAGE
                         WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND CONSTRAINT_NAME = 'PRIMARY'
-                    """, (self.database, table))
-                    primary_keys = {row['COLUMN_NAME'] for row in cursor.fetchall()}
+                    """,
+                        (self.database, table),
+                    )
+                    primary_keys = {row["COLUMN_NAME"] for row in cursor.fetchall()}
 
                     # 获取外键信息
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
                         FROM information_schema.KEY_COLUMN_USAGE
                         WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND REFERENCED_TABLE_NAME IS NOT NULL
-                    """, (self.database, table))
+                    """,
+                        (self.database, table),
+                    )
                     foreign_keys = {
-                        row['COLUMN_NAME']: {
-                            "table": row['REFERENCED_TABLE_NAME'],
-                            "column": row['REFERENCED_COLUMN_NAME']
-                        } for row in cursor.fetchall()
+                        row["COLUMN_NAME"]: {
+                            "table": row["REFERENCED_TABLE_NAME"],
+                            "column": row["REFERENCED_COLUMN_NAME"],
+                        }
+                        for row in cursor.fetchall()
                     }
 
-                    table_dict = {
-                        "name": table,
-                        "columns": []
-                    }
+                    table_dict = {"name": table, "columns": []}
 
                     for col in columns_info:
-                        col_name = col['Field']
-                        col_type = col['Type']
-                        col_comment = col['Comment']
+                        col_name = col["Field"]
+                        col_type = col["Type"]
+                        col_comment = col["Comment"]
                         is_primary = col_name in primary_keys
                         foreign_key = foreign_keys.get(col_name)
 
-                        table_dict["columns"].append({
-                            "name": col_name,
-                            "type": col_type,
-                            "primary_key": is_primary,
-                            "foreign_key": foreign_key,
-                            "comment": col_comment
-                        })
+                        table_dict["columns"].append(
+                            {
+                                "name": col_name,
+                                "type": col_type,
+                                "primary_key": is_primary,
+                                "foreign_key": foreign_key,
+                                "comment": col_comment,
+                            }
+                        )
 
                     schema["tables"].append(table_dict)
 

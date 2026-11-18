@@ -14,7 +14,9 @@ class AnthropicClient(BaseClient):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.base_url = os.getenv("ANTHROPIC_API_BASE_URL", None)
         if not self.api_key:
-            raise ValueError("API key is required. Please provide it or set ANTHROPIC_API_KEY in the environment variables.")
+            raise ValueError(
+                "API key is required. Please provide it or set ANTHROPIC_API_KEY in the environment variables."
+            )
 
         # Create a custom httpx client to avoid proxy-related issues
         # This prevents the 'proxies' parameter error when environment proxy variables are set
@@ -22,16 +24,21 @@ class AnthropicClient(BaseClient):
 
         # Initialize Anthropic client with custom http_client
         if self.base_url:
-            self.client = Anthropic(api_key=self.api_key, base_url=self.base_url, http_client=http_client)
+            self.client = Anthropic(
+                api_key=self.api_key, base_url=self.base_url, http_client=http_client
+            )
         else:
             self.client = Anthropic(api_key=self.api_key, http_client=http_client)
 
-        self.default_model = os.getenv("ANTHROPIC_API_MODEL", "claude-sonnet-4-5-20250929")
+        self.default_model = os.getenv(
+            "ANTHROPIC_API_MODEL", "claude-sonnet-4-5-20250929"
+        )
 
-    def completions(self,
-                    messages: List[Dict[str, str]],
-                    model: Optional[str] | NotGiven = NOT_GIVEN,
-                    ) -> str:
+    def completions(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> str:
         model = model or self.default_model
 
         # Convert messages to Anthropic format
@@ -48,27 +55,25 @@ class AnthropicClient(BaseClient):
                 system_message = content
             else:
                 # Keep user and assistant messages
-                anthropic_messages.append({
-                    "role": role,
-                    "content": content
-                })
+                anthropic_messages.append({"role": role, "content": content})
 
         # Create completion with Anthropic API
         response = self.client.messages.create(
-            model = model,
-            system = system_message,
-            messages = anthropic_messages,
-            max_tokens = int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096")),
+            model=model,
+            system=system_message,
+            messages=anthropic_messages,
+            max_tokens=int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096")),
         )
 
         # Extract text from response
         return response.content[0].text
 
-    def chat_with_tools(self,
-                        messages: List[Dict],
-                        tools: Optional[List[Dict]] = None,
-                        model: Optional[str] | NotGiven = NOT_GIVEN,
-                        ) -> Dict:
+    def chat_with_tools(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> Dict:
         model = model or self.default_model
         kwargs = {"model": model, "messages": messages}
         if tools:
@@ -76,12 +81,14 @@ class AnthropicClient(BaseClient):
         completion = self.client.chat.completions.create(**kwargs)
         msg = completion.choices[0].message
         tool_calls: List[Dict] = []
-        for tc in (msg.tool_calls or []):
+        for tc in msg.tool_calls or []:
             try:
                 args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 args = {}
-            tool_calls.append({"id": tc.id, "name": tc.function.name, "arguments": args})
+            tool_calls.append(
+                {"id": tc.id, "name": tc.function.name, "arguments": args}
+            )
         return {
             "content": msg.content,
             "tool_calls": tool_calls,

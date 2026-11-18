@@ -1,4 +1,5 @@
 """Small SQLite idempotency store for asynchronous agent review jobs."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -47,11 +48,17 @@ class AgentJobStore:
                 )
                 """
             )
-            columns = {row[1] for row in conn.execute("PRAGMA table_info(agent_review_jobs)")}
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(agent_review_jobs)")
+            }
             if "source_repo" not in columns:
-                conn.execute("ALTER TABLE agent_review_jobs ADD COLUMN source_repo TEXT")
+                conn.execute(
+                    "ALTER TABLE agent_review_jobs ADD COLUMN source_repo TEXT"
+                )
             if "lease_token" not in columns:
-                conn.execute("ALTER TABLE agent_review_jobs ADD COLUMN lease_token TEXT")
+                conn.execute(
+                    "ALTER TABLE agent_review_jobs ADD COLUMN lease_token TEXT"
+                )
             additions = {
                 "request_json": "TEXT",
                 "target_branch": "TEXT",
@@ -74,9 +81,15 @@ class AgentJobStore:
             }
             for name, declaration in additions.items():
                 if name not in columns:
-                    conn.execute(f"ALTER TABLE agent_review_jobs ADD COLUMN {name} {declaration}")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_jobs_queue ON agent_review_jobs(status, available_at, created_at)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_jobs_review ON agent_review_jobs(review_url, status)")
+                    conn.execute(
+                        f"ALTER TABLE agent_review_jobs ADD COLUMN {name} {declaration}"
+                    )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_agent_jobs_queue ON agent_review_jobs(status, available_at, created_at)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_agent_jobs_review ON agent_review_jobs(review_url, status)"
+            )
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=30)
@@ -84,8 +97,14 @@ class AgentJobStore:
         return conn
 
     def claim(
-        self, *, key: str, provider: str, review_url: str, backend: str,
-        source_branch: str, lease_seconds: int = 3600,
+        self,
+        *,
+        key: str,
+        provider: str,
+        review_url: str,
+        backend: str,
+        source_branch: str,
+        lease_seconds: int = 3600,
     ) -> bool:
         now = _now()
         previous_token = self.claim_token
@@ -97,12 +116,17 @@ class AgentJobStore:
             # cannot both launch the same review.
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
-                "SELECT status, updated_at, job_root, clone_path, source_repo FROM agent_review_jobs WHERE idempotency_key = ?", (key,)
+                "SELECT status, updated_at, job_root, clone_path, source_repo FROM agent_review_jobs WHERE idempotency_key = ?",
+                (key,),
             ).fetchone()
             if row and row["status"] == "completed":
                 self.claim_token = previous_token
                 return False
-            if row and row["status"] == "running" and not _is_stale(row["updated_at"], lease_seconds):
+            if (
+                row
+                and row["status"] == "running"
+                and not _is_stale(row["updated_at"], lease_seconds)
+            ):
                 self.claim_token = previous_token
                 return False
             if row and row["status"] == "running":
@@ -119,14 +143,30 @@ class AgentJobStore:
             else:
                 conn.execute(
                     "INSERT INTO agent_review_jobs (idempotency_key, provider, review_url, backend, status, source_branch, lease_token, created_at, updated_at) VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?)",
-                    (key, provider, review_url, backend, source_branch, token, now, now),
+                    (
+                        key,
+                        provider,
+                        review_url,
+                        backend,
+                        source_branch,
+                        token,
+                        now,
+                        now,
+                    ),
                 )
             self.claim_token = token
             return True
 
     def enqueue(
-        self, *, key: str, provider: str, review_url: str, backend: str,
-        source_branch: str, target_branch: str, request_json: str,
+        self,
+        *,
+        key: str,
+        provider: str,
+        review_url: str,
+        backend: str,
+        source_branch: str,
+        target_branch: str,
+        request_json: str,
     ) -> bool:
         now = _now()
         with self._connect() as conn:
@@ -145,7 +185,18 @@ class AgentJobStore:
                 (idempotency_key, provider, review_url, backend, status, source_branch,
                  target_branch, request_json, delivery_status, available_at, created_at, updated_at)
                 VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, 'not_attempted', ?, ?, ?)""",
-                (key, provider, review_url, backend, source_branch, target_branch, request_json, now, now, now),
+                (
+                    key,
+                    provider,
+                    review_url,
+                    backend,
+                    source_branch,
+                    target_branch,
+                    request_json,
+                    now,
+                    now,
+                    now,
+                ),
             )
             return True
 
@@ -193,7 +244,9 @@ class AgentJobStore:
             if row is None or row["agent_started"] or row["attempt"] > max_retries:
                 return False
             delay = min(300, 5 * (2 ** max(0, row["attempt"] - 1)))
-            available = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
+            available = (
+                datetime.now(timezone.utc) + timedelta(seconds=delay)
+            ).isoformat()
             conn.execute(
                 "UPDATE agent_review_jobs SET status='queued', lease_token=NULL, error=?, available_at=?, updated_at=? "
                 "WHERE idempotency_key=? AND lease_token=?",
@@ -202,8 +255,14 @@ class AgentJobStore:
             return True
 
     def set_revisions(
-        self, key: str, *, source_revision: str, target_revision: str,
-        previous_source_revision: str = "", previous_note_id: str = "", previous_note_url: str = "",
+        self,
+        key: str,
+        *,
+        source_revision: str,
+        target_revision: str,
+        previous_source_revision: str = "",
+        previous_note_id: str = "",
+        previous_note_url: str = "",
     ) -> bool:
         with self._connect() as conn:
             duplicate = conn.execute(
@@ -219,12 +278,22 @@ class AgentJobStore:
                 "UPDATE agent_review_jobs SET source_revision=?, target_revision=?, previous_reviewed_source_revision=?, "
                 "previous_review_note_id=?, previous_review_note_url=?, updated_at=? "
                 "WHERE idempotency_key=? AND status='running' AND lease_token=?",
-                (source_revision, target_revision, previous_source_revision or None, previous_note_id or None,
-                 previous_note_url or None, _now(), key, self.claim_token),
+                (
+                    source_revision,
+                    target_revision,
+                    previous_source_revision or None,
+                    previous_note_id or None,
+                    previous_note_url or None,
+                    _now(),
+                    key,
+                    self.claim_token,
+                ),
             )
             return cursor.rowcount == 1 and not bool(duplicate)
 
-    def previous_delivery(self, review_url: str, *, exclude_key: str = "") -> dict[str, str]:
+    def previous_delivery(
+        self, review_url: str, *, exclude_key: str = ""
+    ) -> dict[str, str]:
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT source_revision, previous_review_note_id, previous_review_note_url FROM agent_review_jobs "
@@ -240,7 +309,14 @@ class AgentJobStore:
                 "note_url": row["previous_review_note_url"] or "",
             }
 
-    def set_workspace(self, key: str, *, job_root: str, clone_path: str | None, source_repo: str | None) -> bool:
+    def set_workspace(
+        self,
+        key: str,
+        *,
+        job_root: str,
+        clone_path: str | None,
+        source_repo: str | None,
+    ) -> bool:
         with self._connect() as conn:
             cursor = conn.execute(
                 "UPDATE agent_review_jobs SET job_root=?, clone_path=?, source_repo=?, updated_at=? WHERE idempotency_key=? AND status='running' AND lease_token=?",
@@ -265,7 +341,9 @@ class AgentJobStore:
             ).fetchone()
             return row is not None
 
-    def reap_stale(self, *, lease_seconds: int, exclude_keys: tuple[str, ...] = ()) -> list[dict[str, str | None]]:
+    def reap_stale(
+        self, *, lease_seconds: int, exclude_keys: tuple[str, ...] = ()
+    ) -> list[dict[str, str | None]]:
         """Fence expired jobs and return their owned paths for filesystem cleanup."""
         reclaimed: list[dict[str, str | None]] = []
         with self._connect() as conn:
@@ -275,37 +353,62 @@ class AgentJobStore:
                 "FROM agent_review_jobs WHERE status='running'"
             ).fetchall()
             for row in rows:
-                if row["idempotency_key"] in exclude_keys or not _is_stale(row["updated_at"], lease_seconds):
+                if row["idempotency_key"] in exclude_keys or not _is_stale(
+                    row["updated_at"], lease_seconds
+                ):
                     continue
                 # A started backend may outlive its worker. Retain its workspace
                 # for operator reconciliation instead of deleting beneath it.
                 if not row["agent_started"]:
-                    reclaimed.append({
-                        "source_repo": row["source_repo"],
-                        "job_root": row["job_root"],
-                        "clone_path": row["clone_path"],
-                    })
+                    reclaimed.append(
+                        {
+                            "source_repo": row["source_repo"],
+                            "job_root": row["job_root"],
+                            "clone_path": row["clone_path"],
+                        }
+                    )
                 if not row["agent_started"] and row["attempt"] <= 3:
                     delay = min(300, 5 * (2 ** max(0, row["attempt"] - 1)))
-                    available = (datetime.now(timezone.utc) + timedelta(seconds=delay)).isoformat()
+                    available = (
+                        datetime.now(timezone.utc) + timedelta(seconds=delay)
+                    ).isoformat()
                     conn.execute(
                         "UPDATE agent_review_jobs SET status='queued', lease_token=NULL, error=?, available_at=?, updated_at=? "
                         "WHERE idempotency_key=? AND status='running'",
-                        ("job lease expired before Agent start; retrying", available, _now(), row["idempotency_key"]),
+                        (
+                            "job lease expired before Agent start; retrying",
+                            available,
+                            _now(),
+                            row["idempotency_key"],
+                        ),
                     )
                 else:
                     conn.execute(
                         "UPDATE agent_review_jobs SET status='failed', lease_token=NULL, delivery_status='unconfirmed', "
                         "error=?, completed_at=?, updated_at=? WHERE idempotency_key=? AND status='running'",
-                        ("job lease expired after Agent start; workspace retained; check external execution before cleanup", _now(), _now(), row["idempotency_key"]),
+                        (
+                            "job lease expired after Agent start; workspace retained; check external execution before cleanup",
+                            _now(),
+                            _now(),
+                            row["idempotency_key"],
+                        ),
                     )
         return reclaimed
 
     def finish(
-        self, key: str, *, status: str, error: str | None = None,
-        agent_result: str | None = None, result_truncated: bool = False,
-        cleanup_error: str | None = None, delivery_status: str | None = None,
-        delivery_receipt: str | None = None, delivery_error: str | None = None, note_id: str | None = None, note_url: str | None = None,
+        self,
+        key: str,
+        *,
+        status: str,
+        error: str | None = None,
+        agent_result: str | None = None,
+        result_truncated: bool = False,
+        cleanup_error: str | None = None,
+        delivery_status: str | None = None,
+        delivery_receipt: str | None = None,
+        delivery_error: str | None = None,
+        note_id: str | None = None,
+        note_url: str | None = None,
     ) -> None:
         if status not in {"completed", "failed", "timed_out"}:
             raise ValueError("job status must be completed, failed, or timed_out")
@@ -317,12 +420,28 @@ class AgentJobStore:
                 "delivery_status=COALESCE(?, delivery_status), delivery_receipt=?, delivery_error=?, "
                 "previous_review_note_id=COALESCE(?, previous_review_note_id), previous_review_note_url=COALESCE(?, previous_review_note_url), "
                 "completed_at=?, updated_at=?, lease_token=NULL WHERE idempotency_key=? AND status='running' AND lease_token=?",
-                (status, error, agent_result, int(result_truncated), cleanup_error, delivery_status, delivery_receipt, delivery_error,
-                 note_id, note_url, _now(), _now(), key, self.claim_token),
+                (
+                    status,
+                    error,
+                    agent_result,
+                    int(result_truncated),
+                    cleanup_error,
+                    delivery_status,
+                    delivery_receipt,
+                    delivery_error,
+                    note_id,
+                    note_url,
+                    _now(),
+                    _now(),
+                    key,
+                    self.claim_token,
+                ),
             )
 
     def delete_expired(self, *, retention_days: int, batch_size: int = 100) -> int:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(days=retention_days)
+        ).isoformat()
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT idempotency_key FROM agent_review_jobs WHERE status IN ('completed','failed','timed_out') "

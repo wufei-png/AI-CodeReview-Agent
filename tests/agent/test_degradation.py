@@ -4,6 +4,7 @@ Verifies that AgenticReviewer falls back to CodeReviewer when:
   1. The repo sync step fails (bad remote URL).
   2. The AgentRunner raises an exception (e.g. TokenBudgetExceeded).
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -33,12 +34,16 @@ def tiny_remote(tmp_path: Path) -> Path:
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "f.txt").write_text("v1\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "v1"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -61,7 +66,9 @@ class TestSoftDegrade:
             max_iterations=3,
         )
 
-        with patch.object(CodeReviewer, "review_and_strip_code", return_value="FALLBACK") as m:
+        with patch.object(
+            CodeReviewer, "review_and_strip_code", return_value="FALLBACK"
+        ) as m:
             out = reviewer.review(diffs_text="d", commits_text="c")
 
         assert out == "FALLBACK"
@@ -88,7 +95,9 @@ class TestSoftDegrade:
                 max_iterations=3,
             )
 
-            with patch.object(CodeReviewer, "review_and_strip_code", return_value="FALLBACK") as m:
+            with patch.object(
+                CodeReviewer, "review_and_strip_code", return_value="FALLBACK"
+            ) as m:
                 out = reviewer.review(diffs_text="d", commits_text="c")
 
         assert out == "FALLBACK"

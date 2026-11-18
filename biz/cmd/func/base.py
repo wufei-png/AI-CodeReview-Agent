@@ -55,11 +55,14 @@ class LLMReviewFunc(BaseReviewFunc):
     """
     基于LLM的Review功能的基础类，定义了一些通用的方法和属性。
     """
+
     DEFAULT_REVIEW_MAX_TOKENS = 10000
 
     def __init__(self):
         self.client = Factory().getClient()
-        self.review_max_tokens = int(os.getenv('REVIEW_MAX_TOKENS', self.DEFAULT_REVIEW_MAX_TOKENS))
+        self.review_max_tokens = int(
+            os.getenv("REVIEW_MAX_TOKENS", self.DEFAULT_REVIEW_MAX_TOKENS)
+        )
 
     def call_llm(self, messages: List[Dict[str, Any]]) -> str:
         print(f"向 AI请求, messages: {messages}")
@@ -70,7 +73,7 @@ class LLMReviewFunc(BaseReviewFunc):
     def review_and_strip_code(self, text: str) -> str:
         if not text:
             print("警告: 内容为空，无法进行评审。")
-            return '内容为空，无法进行评审。'
+            return "内容为空，无法进行评审。"
 
         # 计算tokens数量，如果超过REVIEW_MAX_TOKENS，截断changes_text
         tokens_count = count_tokens(text)

@@ -1,4 +1,5 @@
 """Load project configuration before imports that construct clients or loggers."""
+
 from __future__ import annotations
 
 import os

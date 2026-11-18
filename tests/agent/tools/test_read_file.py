@@ -9,9 +9,7 @@ def repo_with_files(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "src").mkdir()
-    (repo / "src" / "main.py").write_text(
-        "line1\nline2\nline3\nline4\nline5\n"
-    )
+    (repo / "src" / "main.py").write_text("line1\nline2\nline3\nline4\nline5\n")
     (repo / ".env").write_text("SECRET=x\n")
     binary = repo / "blob.bin"
     binary.write_bytes(b"\x00\x01\x00\x02\x00\x03")

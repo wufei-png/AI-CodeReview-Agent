@@ -11,6 +11,7 @@ class _A(Tool):
     name = "a"
     description = "tool a"
     parameters = {"type": "object", "properties": {}}
+
     def execute(self, **kwargs):
         return ToolResult(success=True, output="A")
 
@@ -19,6 +20,7 @@ class _B(Tool):
     name = "b"
     description = "tool b"
     parameters = {"type": "object", "properties": {}}
+
     def execute(self, **kwargs):
         return ToolResult(success=True, output="B")
 
@@ -54,6 +56,7 @@ class TestRegistry:
         r = ToolRegistry()
         r.register(_A())
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="a", arguments={})
         result = r.dispatch(call)
         assert result.success is True
@@ -62,6 +65,7 @@ class TestRegistry:
     def test_dispatch_unknown_tool_returns_error_result(self):
         r = ToolRegistry()
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="ghost", arguments={})
         result = r.dispatch(call)
         assert result.success is False
@@ -72,11 +76,14 @@ class TestRegistry:
             name = "boom"
             description = ""
             parameters = {"type": "object", "properties": {}}
+
             def execute(self, **kwargs):
                 raise RuntimeError("kaboom")
+
         r = ToolRegistry()
         r.register(_Boom())
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="boom", arguments={})
         result = r.dispatch(call)
         assert result.success is False
@@ -88,11 +95,14 @@ class TestRegistry:
         r = ToolRegistry()
         r.register(_A())
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="a", arguments={"k": "v"})
         with caplog.at_level(logging.DEBUG):
             result = r.dispatch(call)
         assert result.success is True
-        debug_msgs = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
+        debug_msgs = [
+            r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG
+        ]
         joined = "\n".join(debug_msgs)
         assert "a" in joined  # tool name appears
         assert "v" in joined  # arg value appears
@@ -103,11 +113,14 @@ class TestRegistry:
         r = ToolRegistry()
         r.register(_A())
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="a", arguments={})
         with caplog.at_level(logging.INFO):
             result = r.dispatch(call)
         assert result.success is True
-        debug_msgs = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
+        debug_msgs = [
+            r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG
+        ]
         assert not any("dispatch" in m.lower() for m in debug_msgs)
 
 

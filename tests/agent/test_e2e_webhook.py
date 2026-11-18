@@ -5,7 +5,11 @@ from biz.queue.worker import _review_with_strategy
 
 GL_PAYLOAD = {
     "object_kind": "merge_request",
-    "project": {"name": "g/p", "path_with_namespace": "g/p", "git_http_url": "http://x/g/p.git"},
+    "project": {
+        "name": "g/p",
+        "path_with_namespace": "g/p",
+        "git_http_url": "http://x/g/p.git",
+    },
     "object_attributes": {
         "iid": 1,
         "target_project_id": 1,
@@ -36,7 +40,9 @@ class TestWebhookStrategy:
     def test_agentic_branch_routes_to_reviewer(self, monkeypatch):
         monkeypatch.setenv("REVIEW_STRATEGY", "agentic")
         with patch("biz.queue.worker.CodeReviewer") as MockCR:
-            MockCR.return_value.review_and_strip_code.return_value = "DIFF_ONLY_FALLBACK"
+            MockCR.return_value.review_and_strip_code.return_value = (
+                "DIFF_ONLY_FALLBACK"
+            )
             with patch("biz.agent.agentic_reviewer.AgenticReviewer") as MockAR:
                 MockAR.return_value.review.return_value = "AGENTIC_OK"
                 out = _review_with_strategy(
@@ -74,7 +80,9 @@ class TestGitLabPushAgentic:
         """
         monkeypatch.setenv("REVIEW_STRATEGY", "agentic")
         with patch("biz.queue.worker.CodeReviewer") as MockCR:
-            MockCR.return_value.review_and_strip_code.return_value = "DIFF_ONLY_FALLBACK"
+            MockCR.return_value.review_and_strip_code.return_value = (
+                "DIFF_ONLY_FALLBACK"
+            )
             with patch("biz.agent.agentic_reviewer.AgenticReviewer") as MockAR:
                 MockAR.return_value.review.return_value = "AGENTIC_OK"
                 out = _review_with_strategy(
@@ -83,7 +91,9 @@ class TestGitLabPushAgentic:
                     webhook_data=GL_PUSH_PAYLOAD,
                     gitlab_url="http://x",
                 )
-                assert out == "AGENTIC_OK", "expected agentic routing, not diff_only fallback"
+                assert out == "AGENTIC_OK", (
+                    "expected agentic routing, not diff_only fallback"
+                )
                 MockAR.assert_called_once_with(
                     repo_url="http://x/g/p.git",
                     repo_key="g/p",

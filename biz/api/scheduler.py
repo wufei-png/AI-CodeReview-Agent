@@ -1,6 +1,7 @@
 """
 定时任务调度器模块
 """
+
 import atexit
 import os
 import traceback
@@ -17,7 +18,7 @@ def setup_scheduler():
     """
     try:
         scheduler = BackgroundScheduler()
-        crontab_expression = os.getenv('REPORT_CRONTAB_EXPRESSION', '0 18 * * 1-5')
+        crontab_expression = os.getenv("REPORT_CRONTAB_EXPRESSION", "0 18 * * 1-5")
         cron_parts = crontab_expression.split()
         cron_minute, cron_hour, cron_day, cron_month, cron_day_of_week = cron_parts
 
@@ -29,8 +30,8 @@ def setup_scheduler():
                 hour=cron_hour,
                 day=cron_day,
                 month=cron_month,
-                day_of_week=cron_day_of_week
-            )
+                day_of_week=cron_day_of_week,
+            ),
         )
 
         # Start the scheduler

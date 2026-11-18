@@ -47,27 +47,33 @@ class TestIsPathSafe:
 
 
 class TestIsSensitivePath:
-    @pytest.mark.parametrize("path", [
-        ".env",
-        ".env.local",
-        "src/.env",
-        "id_rsa",
-        "keys/id_rsa",
-        "certs/server.pem",
-        ".git/config",
-        ".git/HEAD",
-    ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            ".env",
+            ".env.local",
+            "src/.env",
+            "id_rsa",
+            "keys/id_rsa",
+            "certs/server.pem",
+            ".git/config",
+            ".git/HEAD",
+        ],
+    )
     def test_sensitive(self, tmp_path: Path, path):
         f = tmp_path / path
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text("x")
         assert is_sensitive_path(f) is True
 
-    @pytest.mark.parametrize("path", [
-        "src/main.py",
-        "README.md",
-        "tests/test_main.py",
-    ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "src/main.py",
+            "README.md",
+            "tests/test_main.py",
+        ],
+    )
     def test_not_sensitive(self, tmp_path: Path, path):
         f = tmp_path / path
         f.parent.mkdir(parents=True, exist_ok=True)

@@ -6,6 +6,7 @@ Wraps an existing ``BaseClient`` (from ``biz.llm.factory``) and:
     ``{"tool": "<name>", "args": {...}, "id": "<id>"}`` JSON blocks in its
     content and parses them.
 """
+
 from __future__ import annotations
 
 import json
@@ -102,7 +103,11 @@ class LLMAdapter:
         # captured by the next tool_message round-trip.
         content = resp.content or ""
         for tc in resp.tool_calls:
-            content = content.replace(tc.raw_block, "") if hasattr(tc, "raw_block") else content
+            content = (
+                content.replace(tc.raw_block, "")
+                if hasattr(tc, "raw_block")
+                else content
+            )
         return {"role": "assistant", "content": content.strip()}
 
     def build_tool_message(self, call: ToolCall, result: ToolResult) -> dict:
@@ -120,7 +125,9 @@ class LLMAdapter:
         return LLMResponse(
             content=raw.get("content"),
             tool_calls=[
-                ToolCall(id=tc["id"], name=tc["name"], arguments=tc.get("arguments") or {})
+                ToolCall(
+                    id=tc["id"], name=tc["name"], arguments=tc.get("arguments") or {}
+                )
                 for tc in raw.get("tool_calls", [])
             ],
             raw=raw.get("raw"),
@@ -130,9 +137,14 @@ class LLMAdapter:
         # Inject the JSON protocol instruction into the system message (first one).
         if messages and messages[0].get("role") == "system":
             messages = list(messages)
-            messages[0] = {**messages[0], "content": messages[0]["content"] + _JSON_PROTOCOL_INSTRUCTION}
+            messages[0] = {
+                **messages[0],
+                "content": messages[0]["content"] + _JSON_PROTOCOL_INSTRUCTION,
+            }
         else:
-            messages = [{"role": "system", "content": _JSON_PROTOCOL_INSTRUCTION.lstrip()}] + list(messages)
+            messages = [
+                {"role": "system", "content": _JSON_PROTOCOL_INSTRUCTION.lstrip()}
+            ] + list(messages)
         text = self.client.completions(messages=messages)
         tool_calls: list[ToolCall] = []
         for m in _JSON_TOOL_BLOCK.finditer(text):

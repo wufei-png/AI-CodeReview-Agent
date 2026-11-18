@@ -1,6 +1,7 @@
 """
 路由注册模块
 """
+
 from biz.api.routes import home, daily_report, webhook
 
 

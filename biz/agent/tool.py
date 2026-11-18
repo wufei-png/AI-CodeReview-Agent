@@ -1,4 +1,5 @@
 """Tool abstract base class for the agent."""
+
 from __future__ import annotations
 
 import abc
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 @dataclass
 class ToolResult:
     """Result returned by a tool execution."""
+
     success: bool
     output: str
     error: str | None = None
@@ -23,13 +25,13 @@ class Tool(abc.ABC):
     Subclasses must define class attributes `name`, `description`, `parameters`
     (JSON Schema dict) and implement `execute(**kwargs)`.
     """
+
     name: str = ""
     description: str = ""
     parameters: dict = {}
 
     @abc.abstractmethod
-    def execute(self, **kwargs) -> ToolResult:
-        ...
+    def execute(self, **kwargs) -> ToolResult: ...
 
     def to_schema(self) -> dict:
         """Return an OpenAI-style tool schema for this tool."""

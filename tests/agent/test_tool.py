@@ -22,6 +22,7 @@ class TestTool:
             name = "bad"
             description = ""
             parameters = {}
+
         with pytest.raises(TypeError):
             _Bad()  # type: ignore[abstract]
 

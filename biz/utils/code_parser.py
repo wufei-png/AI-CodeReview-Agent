@@ -14,14 +14,18 @@ class GitDiffParser:
 
         for line in diff_lines:
             # Identify the diff sections
-            if line.startswith('@@'):
+            if line.startswith("@@"):
                 parsing_old_code = False
                 parsing_new_code = False
-            elif line.startswith('-'):
-                old_code.append(line[1:])  # Remove the leading '-' which indicates removal
+            elif line.startswith("-"):
+                old_code.append(
+                    line[1:]
+                )  # Remove the leading '-' which indicates removal
                 parsing_old_code = True
-            elif line.startswith('+'):
-                new_code.append(line[1:])  # Remove the leading '+' which indicates addition
+            elif line.startswith("+"):
+                new_code.append(
+                    line[1:]
+                )  # Remove the leading '+' which indicates addition
                 parsing_new_code = True
             else:
                 if parsing_old_code:
@@ -29,8 +33,8 @@ class GitDiffParser:
                 if parsing_new_code:
                     new_code.append(line)
 
-        self.old_code = '\n'.join(old_code)
-        self.new_code = '\n'.join(new_code)
+        self.old_code = "\n".join(old_code)
+        self.new_code = "\n".join(new_code)
 
     def get_old_code(self):
         if self.old_code is None:

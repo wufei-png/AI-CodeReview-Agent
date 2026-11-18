@@ -158,10 +158,7 @@ def tmp_repo(tmp_path: Path) -> Path:
         "def main():\n"
         "    print(greet('world'))\n"
     )
-    (repo / "src" / "util.py").write_text(
-        "def add(a, b):\n"
-        "    return a + b\n"
-    )
+    (repo / "src" / "util.py").write_text("def add(a, b):\n    return a + b\n")
     (repo / "tests" / "test_main.py").write_text(
         "from src.main import greet\n"
         "\n"
@@ -171,7 +168,9 @@ def tmp_repo(tmp_path: Path) -> Path:
     (repo / "README.md").write_text("# test repo\n")
 
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=repo, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
@@ -254,27 +253,33 @@ class TestIsPathSafe:
 
 
 class TestIsSensitivePath:
-    @pytest.mark.parametrize("path", [
-        ".env",
-        ".env.local",
-        "src/.env",
-        "id_rsa",
-        "keys/id_rsa",
-        "certs/server.pem",
-        ".git/config",
-        ".git/HEAD",
-    ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            ".env",
+            ".env.local",
+            "src/.env",
+            "id_rsa",
+            "keys/id_rsa",
+            "certs/server.pem",
+            ".git/config",
+            ".git/HEAD",
+        ],
+    )
     def test_sensitive(self, tmp_path: Path, path):
         f = tmp_path / path
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text("x")
         assert is_sensitive_path(f) is True
 
-    @pytest.mark.parametrize("path", [
-        "src/main.py",
-        "README.md",
-        "tests/test_main.py",
-    ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "src/main.py",
+            "README.md",
+            "tests/test_main.py",
+        ],
+    )
     def test_not_sensitive(self, tmp_path: Path, path):
         f = tmp_path / path
         f.parent.mkdir(parents=True, exist_ok=True)
@@ -293,6 +298,7 @@ Create `biz/agent/__init__.py` (empty) and `biz/agent/safety.py`:
 
 ```python
 """Path sandboxing and sensitive path detection for agent tools."""
+
 import re
 from pathlib import Path
 from typing import Iterable
@@ -300,7 +306,8 @@ from typing import Iterable
 # Patterns matched anywhere in the path (case-sensitive on POSIX).
 # Each entry is a regex compiled at import time.
 SENSITIVE_PATH_PATTERNS: tuple[re.Pattern, ...] = tuple(
-    re.compile(p) for p in (
+    re.compile(p)
+    for p in (
         r"(^|/)(\.env|\.env\.[^/]+)$",
         r"(^|/)id_rsa(\.pub)?$",
         r"(^|/)\.git/",
@@ -385,6 +392,7 @@ class TestTool:
             name = "bad"
             description = ""
             parameters = {}
+
         with pytest.raises(TypeError):
             _Bad()  # type: ignore[abstract]
 
@@ -414,6 +422,7 @@ Create `biz/agent/tool.py`:
 
 ```python
 """Tool abstract base class for the agent."""
+
 from __future__ import annotations
 
 import abc
@@ -424,6 +433,7 @@ from typing import Any
 @dataclass
 class ToolResult:
     """Result returned by a tool execution."""
+
     success: bool
     output: str
     error: str | None = None
@@ -439,13 +449,13 @@ class Tool(abc.ABC):
     Subclasses must define class attributes `name`, `description`, `parameters`
     (JSON Schema dict) and implement `execute(**kwargs)`.
     """
+
     name: str = ""
     description: str = ""
     parameters: dict = {}
 
     @abc.abstractmethod
-    def execute(self, **kwargs) -> ToolResult:
-        ...
+    def execute(self, **kwargs) -> ToolResult: ...
 
     def to_schema(self) -> dict:
         """Return an OpenAI-style tool schema for this tool."""
@@ -494,6 +504,7 @@ class _A(Tool):
     name = "a"
     description = "tool a"
     parameters = {"type": "object", "properties": {}}
+
     def execute(self, **kwargs):
         return ToolResult(success=True, output="A")
 
@@ -502,6 +513,7 @@ class _B(Tool):
     name = "b"
     description = "tool b"
     parameters = {"type": "object", "properties": {}}
+
     def execute(self, **kwargs):
         return ToolResult(success=True, output="B")
 
@@ -537,6 +549,7 @@ class TestRegistry:
         r = ToolRegistry()
         r.register(_A())
         from biz.agent.llm_adapter import ToolCall
+
         # ToolCall is forward-referenced; if import fails here, tests in earlier
         # tasks must be run first or stub it:
         call = ToolCall(id="1", name="a", arguments={})
@@ -547,6 +560,7 @@ class TestRegistry:
     def test_dispatch_unknown_tool_returns_error_result(self):
         r = ToolRegistry()
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="ghost", arguments={})
         result = r.dispatch(call)
         assert result.success is False
@@ -557,11 +571,14 @@ class TestRegistry:
             name = "boom"
             description = ""
             parameters = {"type": "object", "properties": {}}
+
             def execute(self, **kwargs):
                 raise RuntimeError("kaboom")
+
         r = ToolRegistry()
         r.register(_Boom())
         from biz.agent.llm_adapter import ToolCall
+
         call = ToolCall(id="1", name="boom", arguments={})
         result = r.dispatch(call)
         assert result.success is False
@@ -579,6 +596,7 @@ Create `biz/agent/tool_registry.py`:
 
 ```python
 """Registry mapping tool names to Tool instances."""
+
 from __future__ import annotations
 
 import logging
@@ -610,7 +628,9 @@ class ToolRegistry:
         """
         tool = self._tools.get(call.name)
         if tool is None:
-            return ToolResult(success=False, output="", error=f"unknown tool: {call.name}")
+            return ToolResult(
+                success=False, output="", error=f"unknown tool: {call.name}"
+            )
         try:
             result = tool.execute(**call.arguments)
             if not isinstance(result, ToolResult):
@@ -619,7 +639,9 @@ class ToolRegistry:
             return result
         except Exception as e:
             logger.exception("tool %s raised", call.name)
-            return ToolResult(success=False, output="", error=f"{type(e).__name__}: {e}")
+            return ToolResult(
+                success=False, output="", error=f"{type(e).__name__}: {e}"
+            )
 ```
 
 - [ ] **Step 4: Stub `ToolCall` so tests can import it**
@@ -628,6 +650,7 @@ Create `biz/agent/llm_adapter.py` with just the `ToolCall` dataclass for now (th
 
 ```python
 """LLM output normalization across providers (placeholder)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -687,9 +710,7 @@ def repo_with_files(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "src").mkdir()
-    (repo / "src" / "main.py").write_text(
-        "line1\nline2\nline3\nline4\nline5\n"
-    )
+    (repo / "src" / "main.py").write_text("line1\nline2\nline3\nline4\nline5\n")
     (repo / ".env").write_text("SECRET=x\n")
     binary = repo / "blob.bin"
     binary.write_bytes(b"\x00\x01\x00\x02\x00\x03")
@@ -761,6 +782,7 @@ Create `biz/agent/tools/read_file.py`:
 
 ```python
 """read_file tool: read file contents within the repo."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -805,7 +827,9 @@ class ReadFileTool(Tool):
     def __init__(self, repo_root: Path | str) -> None:
         self.repo_root = Path(repo_root)
 
-    def execute(self, *, path: str, offset: int = 0, limit: int = 500, **_) -> ToolResult:
+    def execute(
+        self, *, path: str, offset: int = 0, limit: int = 500, **_
+    ) -> ToolResult:
         # Resolve target inside repo.
         candidate = (self.repo_root / path).resolve(strict=False)
         if not is_path_safe(candidate, self.repo_root):
@@ -884,7 +908,8 @@ from biz.agent.tools.ast_query import ASTQueryTool
 def python_repo(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
-    (repo / "app.py").write_text(textwrap.dedent("""
+    (repo / "app.py").write_text(
+        textwrap.dedent("""
         from util import add
 
         def greet(name):
@@ -893,15 +918,18 @@ def python_repo(tmp_path):
         def main():
             print(greet("world"))
             print(add(1, 2))
-    """))
-    (repo / "util.py").write_text(textwrap.dedent("""
+    """)
+    )
+    (repo / "util.py").write_text(
+        textwrap.dedent("""
         def add(a, b):
             return a + b
 
         class Calculator:
             def multiply(self, x, y):
                 return x * y
-    """))
+    """)
+    )
     return repo
 
 
@@ -965,6 +993,7 @@ Create `biz/agent/tools/ast_query.py`:
 
 ```python
 """ast_query tool: Python AST-based semantic queries (definitions/references/callees)."""
+
 from __future__ import annotations
 
 import ast
@@ -1034,11 +1063,15 @@ class ASTQueryTool(Tool):
         lines: list[str] = []
         for py in self._iter_python(target):
             try:
-                tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"), filename=str(py))
+                tree = ast.parse(
+                    py.read_text(encoding="utf-8", errors="replace"), filename=str(py)
+                )
             except SyntaxError:
                 continue
             for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                ):
                     kind = "class" if isinstance(node, ast.ClassDef) else "def"
                     rel = py.relative_to(self.repo_root).as_posix()
                     lines.append(f"{rel}:{node.lineno} {kind} {node.name}")
@@ -1057,15 +1090,22 @@ class ASTQueryTool(Tool):
                 continue
             for node in ast.walk(tree):
                 if isinstance(node, ast.Name) and node.id == symbol:
-                    candidates.append(f"{py.relative_to(self.repo_root).as_posix()}:{node.lineno}")
+                    candidates.append(
+                        f"{py.relative_to(self.repo_root).as_posix()}:{node.lineno}"
+                    )
                 elif isinstance(node, ast.Attribute) and node.attr == symbol:
-                    candidates.append(f"{py.relative_to(self.repo_root).as_posix()}:{node.lineno}")
+                    candidates.append(
+                        f"{py.relative_to(self.repo_root).as_posix()}:{node.lineno}"
+                    )
         # Also use ripgrep to catch docstrings/comments if pattern is simple alphanumeric.
         if symbol.replace("_", "").isalnum():
             try:
                 out = subprocess.run(
                     ["rg", "-n", "--no-heading", pattern, str(target)],
-                    capture_output=True, text=True, timeout=10, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
                 )
                 for line in out.stdout.splitlines():
                     file_part = line.split(":", 2)[0]
@@ -1083,7 +1123,9 @@ class ASTQueryTool(Tool):
             if c not in seen:
                 seen.add(c)
                 unique.append(c)
-        return ToolResult(True, "\n".join(unique) if unique else f"(no references to {symbol})")
+        return ToolResult(
+            True, "\n".join(unique) if unique else f"(no references to {symbol})"
+        )
 
     def _callees(self, target: Path, func_name: str) -> ToolResult:
         # If target is a directory, search recursively for the function.
@@ -1094,11 +1136,16 @@ class ASTQueryTool(Tool):
         lines: list[str] = []
         for py in files:
             try:
-                tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"), filename=str(py))
+                tree = ast.parse(
+                    py.read_text(encoding="utf-8", errors="replace"), filename=str(py)
+                )
             except SyntaxError:
                 continue
             for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == func_name:
+                if (
+                    isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and node.name == func_name
+                ):
                     calls = set()
                     for sub in ast.walk(node):
                         if isinstance(sub, ast.Call):
@@ -1106,8 +1153,12 @@ class ASTQueryTool(Tool):
                             if name:
                                 calls.add(name)
                     rel = py.relative_to(self.repo_root).as_posix()
-                    lines.append(f"{rel}:{node.lineno} {func_name}() calls: {sorted(calls)}")
-        return ToolResult(True, "\n".join(lines) if lines else f"(function {func_name} not found)")
+                    lines.append(
+                        f"{rel}:{node.lineno} {func_name}() calls: {sorted(calls)}"
+                    )
+        return ToolResult(
+            True, "\n".join(lines) if lines else f"(function {func_name} not found)"
+        )
 
     @staticmethod
     def _call_name(func: ast.AST) -> str | None:
@@ -1257,6 +1308,7 @@ Create `biz/agent/tools/run_command.py`:
 
 ```python
 """run_command tool: sandboxed shell execution within the repo."""
+
 from __future__ import annotations
 
 import os
@@ -1270,26 +1322,71 @@ from biz.agent.tool import Tool, ToolResult
 
 # Default allowlist (first token of cmd must be in this set, or start with these).
 DEFAULT_ALLOWLIST: list[str] = [
-    "ls", "cat", "head", "tail", "find", "rg", "grep", "wc",
-    "tree", "file", "stat", "diff",
-    "git",       # further restricted to safe subcommands below
-    "echo", "pwd", "true", "false",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "find",
+    "rg",
+    "grep",
+    "wc",
+    "tree",
+    "file",
+    "stat",
+    "diff",
+    "git",  # further restricted to safe subcommands below
+    "echo",
+    "pwd",
+    "true",
+    "false",
 ]
 
 # Safe git subcommands (matched as: cmd starts with `git <subcommand>`).
 SAFE_GIT_SUBCOMMANDS = {
-    "log", "show", "diff", "blame", "ls-files", "ls-tree", "status",
+    "log",
+    "show",
+    "diff",
+    "blame",
+    "ls-files",
+    "ls-tree",
+    "status",
 }
 
 # Default blocklist (takes precedence over allowlist).
 DEFAULT_BLOCKLIST: list[str] = [
-    "rm", "mv", "cp", "chmod", "chown", "sudo",
-    "curl", "wget", "ssh", "scp", "rsync",
-    "dd", "mkfs", "mount", "umount",
-    "kubectl", "docker", "podman",
-    "npm", "yarn", "pnpm", "pip", "pip3", "easy_install",
-    "bash", "sh", "zsh", "fish",   # no nested shells
-    "python", "python3", "ruby", "perl", "node",  # code execution paths
+    "rm",
+    "mv",
+    "cp",
+    "chmod",
+    "chown",
+    "sudo",
+    "curl",
+    "wget",
+    "ssh",
+    "scp",
+    "rsync",
+    "dd",
+    "mkfs",
+    "mount",
+    "umount",
+    "kubectl",
+    "docker",
+    "podman",
+    "npm",
+    "yarn",
+    "pnpm",
+    "pip",
+    "pip3",
+    "easy_install",
+    "bash",
+    "sh",
+    "zsh",
+    "fish",  # no nested shells
+    "python",
+    "python3",
+    "ruby",
+    "perl",
+    "node",  # code execution paths
 ]
 
 # Regex patterns that flag path traversal in commands.
@@ -1360,7 +1457,11 @@ class RunCommandTool(Tool):
         for token in shlex.split(cmd, posix=True):
             # Tokens that look like paths.
             if "/" in token or token.startswith("."):
-                p = (self.repo_root / token).resolve(strict=False) if not token.startswith("/") else Path(token)
+                p = (
+                    (self.repo_root / token).resolve(strict=False)
+                    if not token.startswith("/")
+                    else Path(token)
+                )
                 if is_sensitive_path(p):
                     return ToolResult(False, "", f"sensitive path: {token}")
 
@@ -1383,7 +1484,9 @@ class RunCommandTool(Tool):
         # Git subcommand allowlist.
         if head == "git":
             if len(tokens) < 2 or tokens[1] not in SAFE_GIT_SUBCOMMANDS:
-                return ToolResult(False, "", f"git subcommand not allowed: {tokens[1:]!r}")
+                return ToolResult(
+                    False, "", f"git subcommand not allowed: {tokens[1:]!r}"
+                )
 
         # ---- execute ----
         actual_timeout = int(timeout) if timeout else self.timeout
@@ -1433,6 +1536,7 @@ Replace `biz/agent/tools/__init__.py` content:
 
 ```python
 """Agent tool implementations."""
+
 from biz.agent.tool_registry import ToolRegistry
 from biz.agent.tools.ast_query import ASTQueryTool
 from biz.agent.tools.read_file import ReadFileTool
@@ -1502,12 +1606,16 @@ def bare_remote(tmp_path: Path) -> Path:
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "f.txt").write_text("v1\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "v1"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -1542,7 +1650,11 @@ class TestLocalRepoSyncer:
         cache = tmp_path / "cache"
         syncer = LocalRepoSyncer(cache_root=cache, clone_timeout=5)
         with pytest.raises(RuntimeError):
-            syncer.sync_to(url="https://nonexistent.example.invalid/repo.git", key="proj", ref="main")
+            syncer.sync_to(
+                url="https://nonexistent.example.invalid/repo.git",
+                key="proj",
+                ref="main",
+            )
 
     def test_key_sanitized_to_safe_dirname(self, tmp_path, bare_remote):
         cache = tmp_path / "cache"
@@ -1563,6 +1675,7 @@ Create `biz/agent/repo_syncer.py`:
 
 ```python
 """Lazy local clone/fetch of repositories for agentic review."""
+
 from __future__ import annotations
 
 import errno
@@ -1631,8 +1744,11 @@ class LocalRepoSyncer:
                 if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
                     raise
                 if time.monotonic() >= deadline:
-                    logger.warning("could not acquire lock %s within %ds, proceeding without lock",
-                                   lock_path, self.lock_wait_seconds)
+                    logger.warning(
+                        "could not acquire lock %s within %ds, proceeding without lock",
+                        lock_path,
+                        self.lock_wait_seconds,
+                    )
                     break
                 time.sleep(0.5)
         try:
@@ -1655,7 +1771,9 @@ class LocalRepoSyncer:
                 timeout=self.clone_timeout,
             )
         except subprocess.TimeoutExpired as e:
-            raise RuntimeError(f"git clone timed out after {self.clone_timeout}s") from e
+            raise RuntimeError(
+                f"git clone timed out after {self.clone_timeout}s"
+            ) from e
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"git clone failed: {e.stderr.strip()}") from e
 
@@ -1663,7 +1781,11 @@ class LocalRepoSyncer:
         try:
             subprocess.run(
                 ["git", "fetch", "--all", "--prune"],
-                cwd=target, check=True, capture_output=True, text=True, timeout=self.clone_timeout,
+                cwd=target,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.clone_timeout,
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"git fetch failed: {e.stderr.strip()}") from e
@@ -1675,13 +1797,22 @@ class LocalRepoSyncer:
             # Try origin/<ref> first (works for remote branches), then local ref.
             cmd = ["git", "checkout", ref]
             probe = subprocess.run(
-                cmd, cwd=target, check=False, capture_output=True, text=True,
+                cmd,
+                cwd=target,
+                check=False,
+                capture_output=True,
+                text=True,
             )
             if probe.returncode != 0:
                 cmd = ["git", "checkout", "-B", ref, f"origin/{ref}"]
         try:
             subprocess.run(
-                cmd, cwd=target, check=True, capture_output=True, text=True, timeout=self.clone_timeout,
+                cmd,
+                cwd=target,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.clone_timeout,
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"git checkout failed: {e.stderr.strip()}") from e
@@ -1723,31 +1854,34 @@ from biz.utils.log import logger
 
 
 class BaseClient:
-    """ Base class for chat models client. """
+    """Base class for chat models client."""
 
     def ping(self) -> bool:
         """Ping the model to check connectivity."""
         try:
-            result = self.completions(messages=[{"role": "user", "content": '请仅返回 "ok"。'}])
-            cleaned = re.sub(r'.*?', '', result, flags=re.DOTALL)
+            result = self.completions(
+                messages=[{"role": "user", "content": '请仅返回 "ok"。'}]
+            )
+            cleaned = re.sub(r".*?", "", result, flags=re.DOTALL)
             return cleaned.strip() == "ok"
         except Exception:
             logger.error("尝试连接LLM失败， {e}")
             return False
 
     @abstractmethod
-    def completions(self,
-                    messages: List[Dict[str, str]],
-                    model: Optional[str] | NotGiven = NOT_GIVEN,
-                    ) -> str:
-        """Chat with the model. Returns plain text content.
-        """
+    def completions(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> str:
+        """Chat with the model. Returns plain text content."""
 
-    def chat_with_tools(self,
-                        messages: List[Dict],
-                        tools: Optional[List[Dict]] = None,
-                        model: Optional[str] | NotGiven = NOT_GIVEN,
-                        ) -> Dict:
+    def chat_with_tools(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> Dict:
         """Chat with native tool-use support.
 
         Default implementation raises NotImplementedError. Providers that
@@ -1791,15 +1925,18 @@ class OpenAIClient(BaseClient):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.base_url = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com")
         if not self.api_key:
-            raise ValueError("API key is required. Please provide it or set it in the environment variables.")
+            raise ValueError(
+                "API key is required. Please provide it or set it in the environment variables."
+            )
 
         self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         self.default_model = os.getenv("OPENAI_API_MODEL", "gpt-4o-mini")
 
-    def completions(self,
-                    messages: List[Dict[str, str]],
-                    model: Optional[str] | NotGiven = NOT_GIVEN,
-                    ) -> str:
+    def completions(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> str:
         model = model or self.default_model
         completion = self.client.chat.completions.create(
             model=model,
@@ -1807,11 +1944,12 @@ class OpenAIClient(BaseClient):
         )
         return completion.choices[0].message.content
 
-    def chat_with_tools(self,
-                        messages: List[Dict],
-                        tools: Optional[List[Dict]] = None,
-                        model: Optional[str] | NotGiven = NOT_GIVEN,
-                        ) -> Dict:
+    def chat_with_tools(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> Dict:
         model = model or self.default_model
         kwargs = {"model": model, "messages": messages}
         if tools:
@@ -1819,12 +1957,14 @@ class OpenAIClient(BaseClient):
         completion = self.client.chat.completions.create(**kwargs)
         msg = completion.choices[0].message
         tool_calls: List[Dict] = []
-        for tc in (msg.tool_calls or []):
+        for tc in msg.tool_calls or []:
             try:
                 args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 args = {}
-            tool_calls.append({"id": tc.id, "name": tc.function.name, "arguments": args})
+            tool_calls.append(
+                {"id": tc.id, "name": tc.function.name, "arguments": args}
+            )
         return {
             "content": msg.content,
             "tool_calls": tool_calls,
@@ -1866,30 +2006,32 @@ Expected: They each subclass `BaseClient` and have a `completions()` method.
 For each of the three files, add the following method after the existing `completions()` method. Use the same body — it is identical because all three use the OpenAI SDK or an OpenAI-compatible surface:
 
 ```python
-    def chat_with_tools(self,
-                        messages: List[Dict],
-                        tools: Optional[List[Dict]] = None,
-                        model: Optional[str] | NotGiven = NOT_GIVEN,
-                        ) -> Dict:
-        import json
-        model = model or self.default_model
-        kwargs = {"model": model, "messages": messages}
-        if tools:
-            kwargs["tools"] = tools
-        completion = self.client.chat.completions.create(**kwargs)
-        msg = completion.choices[0].message
-        tool_calls: List[Dict] = []
-        for tc in (msg.tool_calls or []):
-            try:
-                args = json.loads(tc.function.arguments or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            tool_calls.append({"id": tc.id, "name": tc.function.name, "arguments": args})
-        return {
-            "content": msg.content,
-            "tool_calls": tool_calls,
-            "raw": completion,
-        }
+def chat_with_tools(
+    self,
+    messages: List[Dict],
+    tools: Optional[List[Dict]] = None,
+    model: Optional[str] | NotGiven = NOT_GIVEN,
+) -> Dict:
+    import json
+
+    model = model or self.default_model
+    kwargs = {"model": model, "messages": messages}
+    if tools:
+        kwargs["tools"] = tools
+    completion = self.client.chat.completions.create(**kwargs)
+    msg = completion.choices[0].message
+    tool_calls: List[Dict] = []
+    for tc in msg.tool_calls or []:
+        try:
+            args = json.loads(tc.function.arguments or "{}")
+        except json.JSONDecodeError:
+            args = {}
+        tool_calls.append({"id": tc.id, "name": tc.function.name, "arguments": args})
+    return {
+        "content": msg.content,
+        "tool_calls": tool_calls,
+        "raw": completion,
+    }
 ```
 
 Make sure each file's top-of-file imports include `List, Dict, Optional` from `typing` and the SDK they use. Add `import json` at the top if not present.
@@ -1929,6 +2071,7 @@ from biz.agent.llm_adapter import LLMAdapter, LLMResponse, ToolCall
 
 class FakeNativeClient:
     """Client that supports native chat_with_tools."""
+
     def __init__(self, native_response):
         self._resp = native_response
         self.calls = []
@@ -1940,6 +2083,7 @@ class FakeNativeClient:
 
 class FakeLegacyClient:
     """Client without chat_with_tools (e.g. ZhipuAI / Ollama stub)."""
+
     def __init__(self, completions_response):
         self._resp = completions_response
         self.calls = []
@@ -1951,11 +2095,13 @@ class FakeLegacyClient:
 
 class TestNativeMode:
     def test_parses_native_response(self):
-        client = FakeNativeClient({
-            "content": "hi",
-            "tool_calls": [{"id": "1", "name": "foo", "arguments": {"x": 1}}],
-            "raw": object(),
-        })
+        client = FakeNativeClient(
+            {
+                "content": "hi",
+                "tool_calls": [{"id": "1", "name": "foo", "arguments": {"x": 1}}],
+                "raw": object(),
+            }
+        )
         adapter = LLMAdapter(client)
         resp = adapter.completions_with_tools(
             messages=[{"role": "user", "content": "?"}],
@@ -1968,13 +2114,17 @@ class TestNativeMode:
         assert resp.tool_calls[0].arguments == {"x": 1}
 
     def test_no_tool_calls_returns_content_only(self):
-        client = FakeNativeClient({
-            "content": "done",
-            "tool_calls": [],
-            "raw": object(),
-        })
+        client = FakeNativeClient(
+            {
+                "content": "done",
+                "tool_calls": [],
+                "raw": object(),
+            }
+        )
         adapter = LLMAdapter(client)
-        resp = adapter.completions_with_tools(messages=[{"role": "user", "content": "?"}], tools=[])
+        resp = adapter.completions_with_tools(
+            messages=[{"role": "user", "content": "?"}], tools=[]
+        )
         assert resp.content == "done"
         assert resp.tool_calls == []
 
@@ -1982,11 +2132,15 @@ class TestNativeMode:
 class TestJsonFallback:
     def test_parses_json_block_in_content(self):
         # Model that doesn't support tool-use emits a JSON block in its content.
-        block = json.dumps({"tool": "read_file", "args": {"path": "main.py"}, "id": "abc"})
+        block = json.dumps(
+            {"tool": "read_file", "args": {"path": "main.py"}, "id": "abc"}
+        )
         content = f"thinking...\n{block}\ndone thinking"
         client = FakeLegacyClient(content)
         adapter = LLMAdapter(client, use_native=False)  # force fallback
-        resp = adapter.completions_with_tools(messages=[{"role": "user", "content": "?"}], tools=[])
+        resp = adapter.completions_with_tools(
+            messages=[{"role": "user", "content": "?"}], tools=[]
+        )
         assert resp.content is not None
         assert "thinking..." in resp.content
         # Tool call parsed out.
@@ -1998,7 +2152,9 @@ class TestJsonFallback:
     def test_no_json_block_returns_content(self):
         client = FakeLegacyClient("just plain text, no tools needed")
         adapter = LLMAdapter(client, use_native=False)
-        resp = adapter.completions_with_tools(messages=[{"role": "user", "content": "?"}], tools=[])
+        resp = adapter.completions_with_tools(
+            messages=[{"role": "user", "content": "?"}], tools=[]
+        )
         assert resp.content == "just plain text, no tools needed"
         assert resp.tool_calls == []
 
@@ -2007,13 +2163,17 @@ class TestJsonFallback:
         client = FakeLegacyClient("ok")
         adapter = LLMAdapter(client)
         # Should not raise; should use completions() and parse JSON-protocol.
-        resp = adapter.completions_with_tools(messages=[{"role": "user", "content": "?"}], tools=[])
+        resp = adapter.completions_with_tools(
+            messages=[{"role": "user", "content": "?"}], tools=[]
+        )
         assert resp.tool_calls == []
 
 
 class TestBuildMessages:
     def test_build_assistant_message_with_tool_calls(self):
-        adapter = LLMAdapter(FakeNativeClient({"content": "x", "tool_calls": [], "raw": None}))
+        adapter = LLMAdapter(
+            FakeNativeClient({"content": "x", "tool_calls": [], "raw": None})
+        )
         resp = LLMResponse(content="x", tool_calls=[ToolCall("1", "foo", {})])
         msg = adapter.build_assistant_message(resp)
         assert msg["role"] == "assistant"
@@ -2021,9 +2181,14 @@ class TestBuildMessages:
         assert msg.get("content") is not None
 
     def test_build_tool_message_includes_call_id(self):
-        adapter = LLMAdapter(FakeNativeClient({"content": "x", "tool_calls": [], "raw": None}))
+        adapter = LLMAdapter(
+            FakeNativeClient({"content": "x", "tool_calls": [], "raw": None})
+        )
         from biz.agent.tool import ToolResult
-        msg = adapter.build_tool_message(ToolCall("42", "foo", {}), ToolResult(True, "out"))
+
+        msg = adapter.build_tool_message(
+            ToolCall("42", "foo", {}), ToolResult(True, "out")
+        )
         assert msg["role"] == "tool"
         assert msg["tool_call_id"] == "42"
         assert msg["content"] == "out"
@@ -2047,6 +2212,7 @@ Wraps an existing ``BaseClient`` (from ``biz.llm.factory``) and:
     ``{"tool": "<name>", "args": {...}, "id": "<id>"}`` JSON blocks in its
     content and parses them.
 """
+
 from __future__ import annotations
 
 import json
@@ -2146,7 +2312,11 @@ class LLMAdapter:
         # captured by the next tool_message round-trip.
         content = resp.content or ""
         for tc in resp.tool_calls:
-            content = content.replace(tc.raw_block, "") if hasattr(tc, "raw_block") else content
+            content = (
+                content.replace(tc.raw_block, "")
+                if hasattr(tc, "raw_block")
+                else content
+            )
         return {"role": "assistant", "content": content.strip()}
 
     def build_tool_message(self, call: ToolCall, result: ToolResult) -> dict:
@@ -2164,7 +2334,9 @@ class LLMAdapter:
         return LLMResponse(
             content=raw.get("content"),
             tool_calls=[
-                ToolCall(id=tc["id"], name=tc["name"], arguments=tc.get("arguments") or {})
+                ToolCall(
+                    id=tc["id"], name=tc["name"], arguments=tc.get("arguments") or {}
+                )
                 for tc in raw.get("tool_calls", [])
             ],
             raw=raw.get("raw"),
@@ -2174,9 +2346,14 @@ class LLMAdapter:
         # Inject the JSON protocol instruction into the system message (first one).
         if messages and messages[0].get("role") == "system":
             messages = list(messages)
-            messages[0] = {**messages[0], "content": messages[0]["content"] + _JSON_PROTOCOL_INSTRUCTION}
+            messages[0] = {
+                **messages[0],
+                "content": messages[0]["content"] + _JSON_PROTOCOL_INSTRUCTION,
+            }
         else:
-            messages = [{"role": "system", "content": _JSON_PROTOCOL_INSTRUCTION.lstrip()}] + list(messages)
+            messages = [
+                {"role": "system", "content": _JSON_PROTOCOL_INSTRUCTION.lstrip()}
+            ] + list(messages)
         text = self.client.completions(messages=messages)
         tool_calls: list[ToolCall] = []
         for m in _JSON_TOOL_BLOCK.finditer(text):
@@ -2226,6 +2403,7 @@ Create `biz/agent/prompts.py`:
 
 ```python
 """Load Jinja2-rendered prompt templates for the agent."""
+
 from __future__ import annotations
 
 import os
@@ -2250,7 +2428,10 @@ def load_prompt(prompt_key: str, style: str = "professional") -> dict[str, Any]:
         return Template(s).render(style=style)
 
     return {
-        "system_message": {"role": "system", "content": render(prompts["system_prompt"])},
+        "system_message": {
+            "role": "system",
+            "content": render(prompts["system_prompt"]),
+        },
         "user_message": {"role": "user", "content": render(prompts["user_prompt"])},
     }
 ```
@@ -2292,9 +2473,14 @@ from biz.agent.tool_registry import ToolRegistry
 
 class _CounterTool(Tool):
     """A tool that returns its 'n' argument as output."""
+
     name = "counter"
     description = "returns n"
-    parameters = {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+    parameters = {
+        "type": "object",
+        "properties": {"n": {"type": "integer"}},
+        "required": ["n"],
+    }
 
     def execute(self, **kwargs):
         return ToolResult(True, str(kwargs["n"]))
@@ -2309,9 +2495,11 @@ def _adapter_returning(responses):
 
 class TestAgentRunner:
     def test_single_round_terminates_with_content(self):
-        client = _adapter_returning([
-            {"content": "done", "tool_calls": [], "raw": None},
-        ])
+        client = _adapter_returning(
+            [
+                {"content": "done", "tool_calls": [], "raw": None},
+            ]
+        )
         adapter = LLMAdapter(client, use_native=True)
         runner = AgentRunner(adapter=adapter, registry=ToolRegistry(), max_iterations=5)
         result = runner.run([{"role": "user", "content": "hi"}])
@@ -2320,9 +2508,13 @@ class TestAgentRunner:
 
     def test_multi_round_with_tools(self):
         responses = [
-            {"content": "calling counter", "tool_calls": [
-                {"id": "1", "name": "counter", "arguments": {"n": 42}},
-            ], "raw": None},
+            {
+                "content": "calling counter",
+                "tool_calls": [
+                    {"id": "1", "name": "counter", "arguments": {"n": 42}},
+                ],
+                "raw": None,
+            },
             {"content": "the answer is 42", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -2337,9 +2529,13 @@ class TestAgentRunner:
     def test_max_iterations_returns_last_assistant_content(self):
         # Always returns a tool call.
         responses = [
-            {"content": None, "tool_calls": [
-                {"id": str(i), "name": "counter", "arguments": {"n": i}},
-            ], "raw": None}
+            {
+                "content": None,
+                "tool_calls": [
+                    {"id": str(i), "name": "counter", "arguments": {"n": i}},
+                ],
+                "raw": None,
+            }
             for i in range(3)
         ]
         client = _adapter_returning(responses)
@@ -2357,12 +2553,18 @@ class TestAgentRunner:
             name = "boom"
             description = ""
             parameters = {"type": "object", "properties": {}}
+
             def execute(self, **kwargs):
                 raise RuntimeError("explode")
+
         responses = [
-            {"content": "trying", "tool_calls": [
-                {"id": "1", "name": "boom", "arguments": {}},
-            ], "raw": None},
+            {
+                "content": "trying",
+                "tool_calls": [
+                    {"id": "1", "name": "boom", "arguments": {}},
+                ],
+                "raw": None,
+            },
             {"content": "done", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -2377,10 +2579,15 @@ class TestAgentRunner:
     def test_token_cap_triggers_degradation(self):
         # Force a very low cap so the first tool result already blows it.
         from biz.agent.runner import AgentRunner as AR
+
         responses = [
-            {"content": "calling", "tool_calls": [
-                {"id": "1", "name": "counter", "arguments": {"n": 1}},
-            ], "raw": None},
+            {
+                "content": "calling",
+                "tool_calls": [
+                    {"id": "1", "name": "counter", "arguments": {"n": 1}},
+                ],
+                "raw": None,
+            },
             {"content": "done", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -2394,6 +2601,7 @@ class TestAgentRunner:
     def test_three_empty_rounds_raises_streak(self):
         # Three rounds with neither content nor tool_calls.
         from biz.agent.runner import InvalidToolCallStreak
+
         responses = [
             {"content": None, "tool_calls": [], "raw": None},
             {"content": "", "tool_calls": [], "raw": None},
@@ -2401,7 +2609,9 @@ class TestAgentRunner:
         ]
         client = _adapter_returning(responses)
         adapter = LLMAdapter(client, use_native=True)
-        runner = AgentRunner(adapter=adapter, registry=ToolRegistry(), max_iterations=10)
+        runner = AgentRunner(
+            adapter=adapter, registry=ToolRegistry(), max_iterations=10
+        )
         with pytest.raises(InvalidToolCallStreak):
             runner.run([{"role": "user", "content": "?"}])
 
@@ -2411,13 +2621,18 @@ class TestAgentRunner:
             name = "big"
             description = ""
             parameters = {"type": "object", "properties": {}}
+
             def execute(self, **kwargs):
                 return ToolResult(True, "x" * 200_000)
 
         responses = [
-            {"content": "calling", "tool_calls": [
-                {"id": "1", "name": "big", "arguments": {}},
-            ], "raw": None},
+            {
+                "content": "calling",
+                "tool_calls": [
+                    {"id": "1", "name": "big", "arguments": {}},
+                ],
+                "raw": None,
+            },
             {"content": "done", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -2425,7 +2640,9 @@ class TestAgentRunner:
         reg = ToolRegistry()
         reg.register(_BigTool())
         runner = AgentRunner(
-            adapter=adapter, registry=reg, max_iterations=5,
+            adapter=adapter,
+            registry=reg,
+            max_iterations=5,
             tool_output_max_tokens=50,
         )
         result = runner.run([{"role": "user", "content": "?"}])
@@ -2453,6 +2670,7 @@ Create `biz/agent/runner.py`:
 
 ```python
 """Multi-turn agent loop."""
+
 from __future__ import annotations
 
 import logging
@@ -2505,8 +2723,12 @@ class AgentRunner:
                 messages=messages,
                 tools=self.registry.list_schemas(),
             )
-            logger.info("agent round %d: tool_calls=%d content_len=%d",
-                        i, len(resp.tool_calls), len(resp.content or ""))
+            logger.info(
+                "agent round %d: tool_calls=%d content_len=%d",
+                i,
+                len(resp.tool_calls),
+                len(resp.content or ""),
+            )
             if resp.content:
                 last_assistant_content = resp.content
             if not resp.tool_calls:
@@ -2526,7 +2748,9 @@ class AgentRunner:
                 result = self.registry.dispatch(call)
                 # Truncate tool output to bound message size.
                 if result.success and self.tool_output_max_tokens > 0:
-                    truncated = truncate_text_by_tokens(result.output, self.tool_output_max_tokens)
+                    truncated = truncate_text_by_tokens(
+                        result.output, self.tool_output_max_tokens
+                    )
                     if truncated != result.output:
                         result = result.__class__(
                             success=True,
@@ -2540,7 +2764,10 @@ class AgentRunner:
                     raise TokenBudgetExceeded(
                         f"token estimate {usage} exceeds cap {self.total_token_cap}"
                     )
-        return last_assistant_content or f"max iterations ({self.max_iterations}) reached without final response"
+        return (
+            last_assistant_content
+            or f"max iterations ({self.max_iterations}) reached without final response"
+        )
 
     @staticmethod
     def _estimate_total_tokens(messages: list[dict]) -> int:
@@ -2593,18 +2820,23 @@ from biz.utils.code_reviewer import CodeReviewer
 
 def _fake_remote(tmp_path: Path) -> Path:
     import subprocess
+
     remote = tmp_path / "remote.git"
     remote.mkdir()
     subprocess.run(["git", "init", "--bare", "-q"], cwd=remote, check=True)
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "f.txt").write_text("v1\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "v1"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -2622,6 +2854,7 @@ class TestAgenticReviewer:
             "raw": None,
         }
         from biz.agent.llm_adapter import LLMAdapter
+
         adapter = LLMAdapter(mock_client, use_native=True)
 
         reviewer = AgenticReviewer(
@@ -2635,7 +2868,9 @@ class TestAgenticReviewer:
         result = reviewer.review(diffs_text="diff content", commits_text="msg")
         assert "Looks good" in result
 
-    def test_review_soft_degrades_to_diff_only_on_runner_failure(self, tmp_path, monkeypatch):
+    def test_review_soft_degrades_to_diff_only_on_runner_failure(
+        self, tmp_path, monkeypatch
+    ):
         remote = _fake_remote(tmp_path)
         cache = tmp_path / "cache"
 
@@ -2649,6 +2884,7 @@ class TestAgenticReviewer:
             "raw": None,
         }
         from biz.agent.llm_adapter import LLMAdapter
+
         adapter = LLMAdapter(mock_client, use_native=True)
 
         # Patch AgentRunner.run to raise.
@@ -2658,7 +2894,9 @@ class TestAgenticReviewer:
             MockRunner.return_value = mock_instance
 
             # Patch CodeReviewer to verify degradation runs it.
-            with patch.object(CodeReviewer, "review_and_strip_code", return_value="FALLBACK REVIEW") as m:
+            with patch.object(
+                CodeReviewer, "review_and_strip_code", return_value="FALLBACK REVIEW"
+            ) as m:
                 reviewer = AgenticReviewer(
                     repo_url=str(remote),
                     repo_key="test/proj2",
@@ -2683,6 +2921,7 @@ Create `biz/agent/agentic_reviewer.py`:
 
 ```python
 """Top-level entry point for agentic review, used by worker.py."""
+
 from __future__ import annotations
 
 import logging
@@ -2743,31 +2982,46 @@ class AgenticReviewer:
     def _build_registry(self, repo_root: Path) -> ToolRegistry:
         registry = ToolRegistry()
         # ReadFileTool and ASTQueryTool have no env-driven config.
-        registry.register(__import__("biz.agent.tools.read_file", fromlist=["ReadFileTool"]).ReadFileTool(repo_root))
-        registry.register(__import__("biz.agent.tools.ast_query", fromlist=["ASTQueryTool"]).ASTQueryTool(repo_root))
+        registry.register(
+            __import__(
+                "biz.agent.tools.read_file", fromlist=["ReadFileTool"]
+            ).ReadFileTool(repo_root)
+        )
+        registry.register(
+            __import__(
+                "biz.agent.tools.ast_query", fromlist=["ASTQueryTool"]
+            ).ASTQueryTool(repo_root)
+        )
         # RunCommandTool honors AGENT_SHELL_ALLOWLIST / AGENT_SHELL_BLOCKLIST env vars.
         from biz.agent.tools.run_command import (
             RunCommandTool,
             DEFAULT_ALLOWLIST,
             DEFAULT_BLOCKLIST,
         )
+
         allow = _parse_csv_env("AGENT_SHELL_ALLOWLIST", DEFAULT_ALLOWLIST)
         block = _parse_csv_env("AGENT_SHELL_BLOCKLIST", DEFAULT_BLOCKLIST)
-        registry.register(RunCommandTool(
-            repo_root,
-            allowlist=allow,
-            blocklist=block,
-        ))
+        registry.register(
+            RunCommandTool(
+                repo_root,
+                allowlist=allow,
+                blocklist=block,
+            )
+        )
         return registry
 
     def review(self, diffs_text: str, commits_text: str) -> str:
         # 1. Sync repo locally.
         try:
             syncer = LocalRepoSyncer(cache_root=self.cache_root)
-            repo_root = syncer.sync_to(url=self.repo_url, key=self.repo_key, ref=self.ref)
+            repo_root = syncer.sync_to(
+                url=self.repo_url, key=self.repo_key, ref=self.ref
+            )
         except Exception as e:
             logger.error("agentic repo sync failed, degrading: %s", e)
-            notifier.send_notification(content=f"[agentic] repo sync failed: {e}; falling back to diff_only")
+            notifier.send_notification(
+                content=f"[agentic] repo sync failed: {e}; falling back to diff_only"
+            )
             return CodeReviewer().review_and_strip_code(diffs_text, commits_text)
 
         # 2. Build adapter, registry, runner.
@@ -2781,20 +3035,28 @@ class AgenticReviewer:
         )
 
         # 3. Build initial messages from prompt template.
-        prompts = load_prompt("agentic_code_review_prompt", style=os.getenv("REVIEW_STYLE", "professional"))
+        prompts = load_prompt(
+            "agentic_code_review_prompt",
+            style=os.getenv("REVIEW_STYLE", "professional"),
+        )
         user_content = prompts["user_message"]["content"].format(
             diffs_text=diffs_text,
             commits_text=commits_text,
             repo_root=str(repo_root),
         )
-        messages = [prompts["system_message"], {"role": "user", "content": user_content}]
+        messages = [
+            prompts["system_message"],
+            {"role": "user", "content": user_content},
+        ]
 
         # 4. Run the agent loop with soft-degrade.
         try:
             return runner.run(messages)
         except Exception as e:
             logger.error("agentic run failed, degrading to diff_only: %s", e)
-            notifier.send_notification(content=f"[agentic] run failed: {e}; falling back to diff_only")
+            notifier.send_notification(
+                content=f"[agentic] run failed: {e}; falling back to diff_only"
+            )
             return CodeReviewer().review_and_strip_code(diffs_text, commits_text)
 ```
 
@@ -2905,7 +3167,9 @@ import os
 from urllib.parse import urlparse
 
 
-def _resolve_repo_for_event(webhook_data: dict, gitlab_url: str = "") -> tuple[str | None, str | None, str | None]:
+def _resolve_repo_for_event(
+    webhook_data: dict, gitlab_url: str = ""
+) -> tuple[str | None, str | None, str | None]:
     """Infer (repo_url, repo_key, ref) for agentic mode from a webhook payload.
 
     Returns (None, None, None) if it can't be determined (caller should degrade).
@@ -2914,7 +3178,11 @@ def _resolve_repo_for_event(webhook_data: dict, gitlab_url: str = "") -> tuple[s
     if "object_kind" in webhook_data:
         repo = webhook_data.get("project", {})
         path = repo.get("path_with_namespace") or repo.get("name")
-        url = repo.get("git_http_url") or repo.get("url") or (gitlab_url.rstrip("/") + "/" + path if path and gitlab_url else None)
+        url = (
+            repo.get("git_http_url")
+            or repo.get("url")
+            or (gitlab_url.rstrip("/") + "/" + path if path and gitlab_url else None)
+        )
         attrs = webhook_data.get("object_attributes", {})
         ref = attrs.get("source_branch") or attrs.get("ref")
         sha = (attrs.get("last_commit") or {}).get("id")
@@ -2948,7 +3216,9 @@ def _resolve_repo_for_event(webhook_data: dict, gitlab_url: str = "") -> tuple[s
 In `biz/queue/worker.py`, add:
 
 ```python
-def _review_with_strategy(changes: list, commits_text: str, webhook_data: dict, gitlab_url: str) -> str:
+def _review_with_strategy(
+    changes: list, commits_text: str, webhook_data: dict, gitlab_url: str
+) -> str:
     """Pick review strategy based on REVIEW_STRATEGY env var."""
     strategy = os.getenv("REVIEW_STRATEGY", "diff_only")
     if strategy != "agentic":
@@ -2956,9 +3226,12 @@ def _review_with_strategy(changes: list, commits_text: str, webhook_data: dict, 
 
     # Agentic mode.
     from biz.agent.agentic_reviewer import AgenticReviewer
+
     repo_url, repo_key, ref = _resolve_repo_for_event(webhook_data, gitlab_url)
     if not (repo_url and repo_key and ref):
-        logger.warning("could not resolve repo info for agentic mode, falling back to diff_only")
+        logger.warning(
+            "could not resolve repo info for agentic mode, falling back to diff_only"
+        )
         return CodeReviewer().review_and_strip_code(str(changes), commits_text)
     cache_root = os.getenv("REPO_CACHE_DIR", "data/repo_cache")
     try:
@@ -3039,12 +3312,16 @@ def tiny_remote(tmp_path: Path) -> Path:
     work = tmp_path / "w"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "app.py").write_text("def main():\n    print('hi')\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -3076,6 +3353,7 @@ class TestEndToEndAgentic:
 
     def test_agentic_reviewer_degrades_when_runner_raises(self, tmp_path, tiny_remote):
         from biz.agent.runner import TokenBudgetExceeded
+
         cache = tmp_path / "cache"
         mock_client = MagicMock()
         adapter = LLMAdapter(mock_client, use_native=True)
@@ -3098,7 +3376,9 @@ class TestEndToEndAgentic:
                 mock_inst.run.side_effect = TokenBudgetExceeded("over")
                 MockRunner.return_value = mock_inst
                 with __import__("unittest.mock", fromlist=["patch"]).patch.object(
-                    __import__("biz.utils.code_reviewer", fromlist=["CodeReviewer"]).CodeReviewer,
+                    __import__(
+                        "biz.utils.code_reviewer", fromlist=["CodeReviewer"]
+                    ).CodeReviewer,
                     "review_and_strip_code",
                     return_value="DEGRADED 总分:50分",
                 ):
@@ -3158,7 +3438,9 @@ class TestSoftDegrade:
             adapter=adapter,
             max_iterations=3,
         )
-        with patch.object(CodeReviewer, "review_and_strip_code", return_value="FALLBACK") as m:
+        with patch.object(
+            CodeReviewer, "review_and_strip_code", return_value="FALLBACK"
+        ) as m:
             out = reviewer.review(diffs_text="d", commits_text="c")
             assert out == "FALLBACK"
             m.assert_called_once()
@@ -3166,18 +3448,23 @@ class TestSoftDegrade:
     def test_runner_raises_falls_back(self, tmp_path):
         # Use a real local git repo so sync succeeds.
         import subprocess
+
         remote = tmp_path / "r.git"
         remote.mkdir()
         subprocess.run(["git", "init", "--bare", "-q"], cwd=remote, check=True)
         work = tmp_path / "w"
         work.mkdir()
         subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-        subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+        subprocess.run(
+            ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+        )
         subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
         (work / "f").write_text("x")
         subprocess.run(["git", "add", "-A"], cwd=work, check=True)
         subprocess.run(["git", "commit", "-q", "-m", "i"], cwd=work, check=True)
-        subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+        subprocess.run(
+            ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+        )
         subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
 
         cache = tmp_path / "cache"
@@ -3194,7 +3481,9 @@ class TestSoftDegrade:
             inst = MagicMock()
             inst.run.side_effect = TokenBudgetExceeded("boom")
             MockRunner.return_value = inst
-            with patch.object(CodeReviewer, "review_and_strip_code", return_value="FALLBACK") as m:
+            with patch.object(
+                CodeReviewer, "review_and_strip_code", return_value="FALLBACK"
+            ) as m:
                 out = reviewer.review(diffs_text="d", commits_text="c")
                 assert out == "FALLBACK"
                 m.assert_called_once()
@@ -3233,7 +3522,11 @@ import pytest
 
 GL_PAYLOAD = {
     "object_kind": "merge_request",
-    "project": {"name": "g/p", "path_with_namespace": "g/p", "git_http_url": "http://x/g/p.git"},
+    "project": {
+        "name": "g/p",
+        "path_with_namespace": "g/p",
+        "git_http_url": "http://x/g/p.git",
+    },
     "object_attributes": {
         "iid": 1,
         "target_project_id": 1,
@@ -3252,22 +3545,33 @@ class TestWebhookStrategy:
         monkeypatch.setenv("REVIEW_STRATEGY", "diff_only")
         # Verify worker helper picks diff_only when env unset/default.
         from biz.queue.worker import _review_with_strategy
+
         with patch("biz.queue.worker.CodeReviewer") as MockCR:
             MockCR.return_value.review_and_strip_code.return_value = "DIFF_ONLY"
-            out = _review_with_strategy(changes=[], commits_text="c", webhook_data=GL_PAYLOAD, gitlab_url="http://x")
+            out = _review_with_strategy(
+                changes=[],
+                commits_text="c",
+                webhook_data=GL_PAYLOAD,
+                gitlab_url="http://x",
+            )
             assert out == "DIFF_ONLY"
             MockCR.return_value.review_and_strip_code.assert_called_once()
 
     def test_agentic_branch_routes_to_reviewer(self, monkeypatch):
         monkeypatch.setenv("REVIEW_STRATEGY", "agentic")
         from biz.queue.worker import _review_with_strategy
+
         with patch("biz.queue.worker.CodeReviewer") as MockCR:
-            MockCR.return_value.review_and_strip_code.return_value = "DIFF_ONLY_FALLBACK"
+            MockCR.return_value.review_and_strip_code.return_value = (
+                "DIFF_ONLY_FALLBACK"
+            )
             with patch("biz.agent.agentic_reviewer.AgenticReviewer") as MockAR:
                 MockAR.return_value.review.return_value = "AGENTIC_OK"
                 out = _review_with_strategy(
-                    changes=["+ x"], commits_text="c",
-                    webhook_data=GL_PAYLOAD, gitlab_url="http://x",
+                    changes=["+ x"],
+                    commits_text="c",
+                    webhook_data=GL_PAYLOAD,
+                    gitlab_url="http://x",
                 )
                 assert out == "AGENTIC_OK"
                 MockAR.assert_called_once()
@@ -3399,6 +3703,7 @@ Append after the existing class body (or as a nested dataclass):
 ```python
 import json
 import time
+
 
 @dataclass
 class ReviewLog:

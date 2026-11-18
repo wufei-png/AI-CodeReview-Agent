@@ -14,16 +14,16 @@ class Factory:
     def getClient(provider: str = None) -> BaseClient:
         provider = provider or os.getenv("LLM_PROVIDER", "anthropic")
         chat_model_providers = {
-            'anthropic': lambda: AnthropicClient(),
-            'zhipuai': lambda: ZhipuAIClient(),
-            'openai': lambda: OpenAIClient(),
-            'deepseek': lambda: DeepSeekClient(),
-            'qwen': lambda: QwenClient(),
-            'ollama': lambda: OllamaClient()
+            "anthropic": lambda: AnthropicClient(),
+            "zhipuai": lambda: ZhipuAIClient(),
+            "openai": lambda: OpenAIClient(),
+            "deepseek": lambda: DeepSeekClient(),
+            "qwen": lambda: QwenClient(),
+            "ollama": lambda: OllamaClient(),
         }
 
         provider_func = chat_model_providers.get(provider)
         if provider_func:
             return provider_func()
         else:
-            raise Exception(f'Unknown chat model provider: {provider}')
+            raise Exception(f"Unknown chat model provider: {provider}")

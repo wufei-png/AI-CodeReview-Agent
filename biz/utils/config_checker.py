@@ -10,7 +10,7 @@ REQUIRED_ENV_VARS = [
 ]
 
 # 允许的 LLM 供应商
-LLM_PROVIDERS = { "anthropic", "zhipuai", "openai", "deepseek", "ollama", "qwen" }
+LLM_PROVIDERS = {"anthropic", "zhipuai", "openai", "deepseek", "ollama", "qwen"}
 
 # 每种供应商必须配置的键
 LLM_REQUIRED_KEYS = {
@@ -48,9 +48,12 @@ def check_llm_provider():
     missing_keys = [key for key in required_keys if not os.getenv(key)]
 
     if missing_keys:
-        logger.error(f"当前 LLM 供应商为 {llm_provider}，但缺少必要的环境变量: {', '.join(missing_keys)}")
+        logger.error(
+            f"当前 LLM 供应商为 {llm_provider}，但缺少必要的环境变量: {', '.join(missing_keys)}"
+        )
     else:
         logger.info(f"LLM 供应商 {llm_provider} 的配置项已设置。")
+
 
 def check_llm_connectivity():
     client = Factory().getClient()
@@ -59,6 +62,7 @@ def check_llm_connectivity():
         logger.info("LLM 可以连接成功。")
     else:
         logger.error("LLM连接可能有问题，请检查配置项。")
+
 
 def check_config():
     """主检查入口"""

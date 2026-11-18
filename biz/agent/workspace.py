@@ -1,4 +1,5 @@
 """Repository resolution, latest-branch fetching, and disposable workspace cleanup."""
+
 from __future__ import annotations
 
 import os
@@ -75,7 +76,13 @@ def _git(
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
-            ["git", *args], cwd=cwd, check=check, capture_output=True, text=True, timeout=timeout, env=env
+            ["git", *args],
+            cwd=cwd,
+            check=check,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
         )
     except FileNotFoundError as exc:
         raise RuntimeError("git is required for agent review") from exc
@@ -104,7 +111,10 @@ class RepositoryResolver:
         for configured_remote, root in self.config.repo_roots.items():
             key = normalize_remote_url(configured_remote)
             key_parts = _remote_parts(configured_remote)
-            if wanted != key and not (len(wanted_parts) > len(key_parts) and wanted_parts[: len(key_parts)] == key_parts):
+            if wanted != key and not (
+                len(wanted_parts) > len(key_parts)
+                and wanted_parts[: len(key_parts)] == key_parts
+            ):
                 continue
             matched.append((configured_remote, root, key_parts))
         if not matched:
@@ -116,13 +126,19 @@ class RepositoryResolver:
                 continue
             suffix = wanted_parts[len(key_parts) :]
             direct = root if not suffix else root.joinpath(*suffix)
-            if _is_git_repo(direct) and normalize_remote_url(_origin(direct) or "") == wanted:
+            if (
+                _is_git_repo(direct)
+                and normalize_remote_url(_origin(direct) or "") == wanted
+            ):
                 return direct.resolve()
             search_root = root
             while not search_root.exists() and search_root != search_root.parent:
                 search_root = search_root.parent
             candidates.extend(self._find_repositories(search_root, wanted))
-        unique = sorted({candidate.resolve() for candidate in candidates}, key=lambda item: (len(item.parts), str(item)))
+        unique = sorted(
+            {candidate.resolve() for candidate in candidates},
+            key=lambda item: (len(item.parts), str(item)),
+        )
         return unique[0] if unique else None
 
     def _find_repositories(self, root: Path, wanted: str) -> list[Path]:
@@ -137,7 +153,10 @@ class RepositoryResolver:
             if depth > self.config.discovery_max_depth:
                 dirs[:] = []
                 continue
-            if _is_git_repo(current_path) and normalize_remote_url(_origin(current_path) or "") == wanted:
+            if (
+                _is_git_repo(current_path)
+                and normalize_remote_url(_origin(current_path) or "") == wanted
+            ):
                 matches.append(current_path)
                 dirs[:] = []
         return matches
@@ -152,68 +171,127 @@ class WorkspaceManager:
         self,
         request: AgentReviewRequest,
         *,
-        on_workspace_allocated: Callable[[Path, Path | None, Path | None], None] | None = None,
+        on_workspace_allocated: Callable[[Path, Path | None, Path | None], None]
+        | None = None,
     ) -> WorkspaceContext:
         self.config.ensure_runtime_directories()
         source_repo = self.resolver.resolve_local_repo(request.remote_url)
         clone_path: Path | None = None
-        job_root: Path | None = Path(tempfile.mkdtemp(prefix="job-", dir=self.config.worktree_parent))
+        job_root: Path | None = Path(
+            tempfile.mkdtemp(prefix="job-", dir=self.config.worktree_parent)
+        )
         clone_complete = False
         self._notify_allocation(on_workspace_allocated, job_root, None, None)
         try:
             if source_repo is None:
-                safe = re.sub(r"[^A-Za-z0-9._-]+", "-", request.project_path).strip("-") or "repo"
-                clone_path = Path(tempfile.mkdtemp(prefix=f"{safe}-", dir=self.config.clone_parent))
+                safe = (
+                    re.sub(r"[^A-Za-z0-9._-]+", "-", request.project_path).strip("-")
+                    or "repo"
+                )
+                clone_path = Path(
+                    tempfile.mkdtemp(prefix=f"{safe}-", dir=self.config.clone_parent)
+                )
                 # mkdtemp gives us an empty owned directory; clone into its parent,
                 # then remove the temporary leaf so git can create the repository.
                 clone_path.rmdir()
                 # Register the destination before Git starts so a process crash
                 # during clone still leaves a path the reaper can remove.
-                self._notify_allocation(on_workspace_allocated, job_root, clone_path, None)
+                self._notify_allocation(
+                    on_workspace_allocated, job_root, clone_path, None
+                )
                 self._run_git_clone(request.remote_url, request.provider, clone_path)
                 clone_complete = True
                 source_repo = clone_path
             else:
-                safe = re.sub(r"[^A-Za-z0-9._-]+", "-", request.project_path).strip("-") or "repo"
-                clone_path = Path(tempfile.mkdtemp(prefix=f"{safe}-", dir=self.config.clone_parent))
+                safe = (
+                    re.sub(r"[^A-Za-z0-9._-]+", "-", request.project_path).strip("-")
+                    or "repo"
+                )
+                clone_path = Path(
+                    tempfile.mkdtemp(prefix=f"{safe}-", dir=self.config.clone_parent)
+                )
                 clone_path.rmdir()
-                self._notify_allocation(on_workspace_allocated, job_root, clone_path, None)
+                self._notify_allocation(
+                    on_workspace_allocated, job_root, clone_path, None
+                )
                 self._run_local_clone(source_repo, clone_path, request.remote_url)
                 clone_complete = True
                 source_repo = clone_path
-            self._fetch_source_branch(source_repo, request.source_branch, request.provider)
+            self._fetch_source_branch(
+                source_repo, request.source_branch, request.provider
+            )
             self._fetch_target_branch(
-                source_repo, request.target_remote_url or request.remote_url,
-                request.target_branch, request.provider,
+                source_repo,
+                request.target_remote_url or request.remote_url,
+                request.target_branch,
+                request.provider,
             )
             if clone_path is not None:
                 self._scrub_clone_origin(clone_path, request.remote_url)
-            source_revision = _git(source_repo, "rev-parse", f"refs/remotes/origin/{request.source_branch}^{{commit}}", timeout=self.config.clone_timeout).stdout.strip()
-            target_revision = _git(source_repo, "rev-parse", f"refs/remotes/agent-target/{request.target_branch}^{{commit}}", timeout=self.config.clone_timeout).stdout.strip()
+            source_revision = _git(
+                source_repo,
+                "rev-parse",
+                f"refs/remotes/origin/{request.source_branch}^{{commit}}",
+                timeout=self.config.clone_timeout,
+            ).stdout.strip()
+            target_revision = _git(
+                source_repo,
+                "rev-parse",
+                f"refs/remotes/agent-target/{request.target_branch}^{{commit}}",
+                timeout=self.config.clone_timeout,
+            ).stdout.strip()
             agent_repo = job_root / ".agent-source"
-            self._notify_allocation(on_workspace_allocated, job_root, clone_path, agent_repo)
+            self._notify_allocation(
+                on_workspace_allocated, job_root, clone_path, agent_repo
+            )
             self._create_agent_source(
-                source_repo, agent_repo, request.remote_url, source_revision, target_revision,
+                source_repo,
+                agent_repo,
+                request.remote_url,
+                source_revision,
+                target_revision,
             )
             worktree_path = job_root / "worktree"
-            _git(agent_repo, "worktree", "add", "--detach", str(worktree_path), source_revision, timeout=self.config.clone_timeout)
-            head = _git(worktree_path, "rev-parse", "HEAD", timeout=self.config.clone_timeout).stdout.strip()
+            _git(
+                agent_repo,
+                "worktree",
+                "add",
+                "--detach",
+                str(worktree_path),
+                source_revision,
+                timeout=self.config.clone_timeout,
+            )
+            head = _git(
+                worktree_path, "rev-parse", "HEAD", timeout=self.config.clone_timeout
+            ).stdout.strip()
             if head != source_revision:
-                raise RuntimeError("prepared worktree HEAD does not match Source Revision")
+                raise RuntimeError(
+                    "prepared worktree HEAD does not match Source Revision"
+                )
             skill_path = job_root / ".agent-skill" / "SKILL.md"
             if not self.config.shared_review_skill.is_file():
-                raise RuntimeError(f"shared review skill not found: {self.config.shared_review_skill}")
+                raise RuntimeError(
+                    f"shared review skill not found: {self.config.shared_review_skill}"
+                )
             skill_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(self.config.shared_review_skill, skill_path)
             return WorkspaceContext(
-                source_repo=agent_repo, job_root=job_root, clone_path=clone_path,
-                source_revision=source_revision, target_revision=target_revision,
-                source_branch=request.source_branch, skill_path=skill_path, source_repo_owned=True, worktree_path=worktree_path,
+                source_repo=agent_repo,
+                job_root=job_root,
+                clone_path=clone_path,
+                source_revision=source_revision,
+                target_revision=target_revision,
+                source_branch=request.source_branch,
+                skill_path=skill_path,
+                source_repo_owned=True,
+                worktree_path=worktree_path,
             )
         except Exception:
             if job_root is not None:
                 shutil.rmtree(job_root, ignore_errors=True)
-            if clone_path is not None and (not clone_complete or self.config.clone_cleanup == "always"):
+            if clone_path is not None and (
+                not clone_complete or self.config.clone_cleanup == "always"
+            ):
                 if clone_complete:
                     try:
                         self._scrub_clone_origin(clone_path, request.remote_url)
@@ -226,30 +304,63 @@ class WorkspaceManager:
         try:
             with self._git_auth_env(provider) as env:
                 subprocess.run(
-                    ["git", "clone", self._without_credentials(remote_url), str(target)],
-                    check=True, capture_output=True, text=True, timeout=self.config.clone_timeout, env=env,
+                    [
+                        "git",
+                        "clone",
+                        self._without_credentials(remote_url),
+                        str(target),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.config.clone_timeout,
+                    env=env,
                 )
         except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(f"git clone timed out after {self.config.clone_timeout}s") from exc
+            raise RuntimeError(
+                f"git clone timed out after {self.config.clone_timeout}s"
+            ) from exc
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(f"git clone failed: {redact_credentials((exc.stderr or '').strip())}") from exc
+            raise RuntimeError(
+                f"git clone failed: {redact_credentials((exc.stderr or '').strip())}"
+            ) from exc
 
     def _run_local_clone(self, source: Path, target: Path, remote_url: str) -> None:
         """Seed a disposable sync clone without modifying the operator checkout."""
         try:
             subprocess.run(
-                ["git", "clone", "--no-hardlinks", "--no-checkout", str(source), str(target)],
-                check=True, capture_output=True, text=True, timeout=self.config.clone_timeout,
+                [
+                    "git",
+                    "clone",
+                    "--no-hardlinks",
+                    "--no-checkout",
+                    str(source),
+                    str(target),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.config.clone_timeout,
             )
             self._scrub_clone_origin(target, remote_url)
         except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(f"local repository clone timed out after {self.config.clone_timeout}s") from exc
+            raise RuntimeError(
+                f"local repository clone timed out after {self.config.clone_timeout}s"
+            ) from exc
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(f"local repository clone failed: {redact_credentials((exc.stderr or '').strip())}") from exc
+            raise RuntimeError(
+                f"local repository clone failed: {redact_credentials((exc.stderr or '').strip())}"
+            ) from exc
 
     @staticmethod
     def _scrub_clone_origin(repo: Path, clean_url: str) -> None:
-        _git(repo, "remote", "set-url", "origin", WorkspaceManager._without_credentials(clean_url))
+        _git(
+            repo,
+            "remote",
+            "set-url",
+            "origin",
+            WorkspaceManager._without_credentials(clean_url),
+        )
 
     @staticmethod
     def _without_credentials(value: str) -> str:
@@ -277,9 +388,24 @@ class WorkspaceManager:
             "gitea": "GITEA_ACCESS_TOKEN",
         }
         base_names = {
-            "HOME", "PATH", "USER", "LOGNAME", "SHELL", "LANG", "LC_ALL", "LC_CTYPE",
-            "TMPDIR", "TERM", "SSH_AUTH_SOCK", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM",
-            "GIT_SSH_COMMAND", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "SSL_CERT_FILE",
+            "HOME",
+            "PATH",
+            "USER",
+            "LOGNAME",
+            "SHELL",
+            "LANG",
+            "LC_ALL",
+            "LC_CTYPE",
+            "TMPDIR",
+            "TERM",
+            "SSH_AUTH_SOCK",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_NOSYSTEM",
+            "GIT_SSH_COMMAND",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "SSL_CERT_FILE",
             "SSL_CERT_DIR",
         }
         env = {name: value for name, value in os.environ.items() if name in base_names}
@@ -287,23 +413,29 @@ class WorkspaceManager:
         token = os.environ.get(env_names.get(provider, ""), "")
         askpass_path: Path | None = None
         if token:
-            askpass_fd, askpass_name = tempfile.mkstemp(prefix="git-askpass-", dir=self.config.clone_parent)
+            askpass_fd, askpass_name = tempfile.mkstemp(
+                prefix="git-askpass-", dir=self.config.clone_parent
+            )
             os.close(askpass_fd)
             askpass_path = Path(askpass_name)
             askpass_path.write_text(
                 "#!/bin/sh\n"
-                "case \"$1\" in\n"
+                'case "$1" in\n'
                 "  *[Uu]sername*) printf '%s' \"${GIT_ASKPASS_USERNAME:-oauth2}\" ;;\n"
                 "  *) printf '%s' \"${GIT_ASKPASS_TOKEN:-}\" ;;\n"
                 "esac\n",
                 encoding="utf-8",
             )
             askpass_path.chmod(0o700)
-            env.update({
-                "GIT_ASKPASS": str(askpass_path),
-                "GIT_ASKPASS_TOKEN": token,
-                "GIT_ASKPASS_USERNAME": "x-access-token" if provider == "github" else "oauth2",
-            })
+            env.update(
+                {
+                    "GIT_ASKPASS": str(askpass_path),
+                    "GIT_ASKPASS_TOKEN": token,
+                    "GIT_ASKPASS_USERNAME": "x-access-token"
+                    if provider == "github"
+                    else "oauth2",
+                }
+            )
         try:
             yield env
         finally:
@@ -311,25 +443,46 @@ class WorkspaceManager:
                 askpass_path.unlink(missing_ok=True)
 
     def _create_agent_source(
-        self, source_repo: Path, target: Path, remote_url: str,
-        source_revision: str, target_revision: str,
+        self,
+        source_repo: Path,
+        target: Path,
+        remote_url: str,
+        source_revision: str,
+        target_revision: str,
     ) -> None:
         try:
             subprocess.run(
-                ["git", "clone", "--no-hardlinks", "--dissociate", "--no-checkout", str(source_repo), str(target)],
-                check=True, capture_output=True, text=True, timeout=self.config.clone_timeout,
+                [
+                    "git",
+                    "clone",
+                    "--no-hardlinks",
+                    "--dissociate",
+                    "--no-checkout",
+                    str(source_repo),
+                    str(target),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.config.clone_timeout,
             )
             for revision, ref in (
                 (source_revision, "refs/agent/source"),
                 (target_revision, "refs/agent/target"),
             ):
                 _git(
-                    target, "fetch", "--no-tags", str(source_repo),
-                    f"{revision}:{ref}", timeout=self.config.clone_timeout,
+                    target,
+                    "fetch",
+                    "--no-tags",
+                    str(source_repo),
+                    f"{revision}:{ref}",
+                    timeout=self.config.clone_timeout,
                 )
             self._scrub_clone_origin(target, remote_url)
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(f"agent source clone failed: {redact_credentials((exc.stderr or '').strip())}") from exc
+            raise RuntimeError(
+                f"agent source clone failed: {redact_credentials((exc.stderr or '').strip())}"
+            ) from exc
 
     def _fetch_source_branch(self, repo: Path, branch: str, provider: str = "") -> None:
         if not branch or branch.startswith("/"):
@@ -340,31 +493,55 @@ class WorkspaceManager:
         refspec = f"+refs/heads/{branch}:refs/remotes/origin/{branch}"
         try:
             with self._git_auth_env(provider) as env:
-                _git(repo, "fetch", "origin", "--prune", refspec, timeout=self.config.clone_timeout, env=env)
+                _git(
+                    repo,
+                    "fetch",
+                    "origin",
+                    "--prune",
+                    refspec,
+                    timeout=self.config.clone_timeout,
+                    env=env,
+                )
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(f"git fetch source branch failed: {redact_credentials((exc.stderr or '').strip())}") from exc
+            raise RuntimeError(
+                f"git fetch source branch failed: {redact_credentials((exc.stderr or '').strip())}"
+            ) from exc
 
-    def _fetch_target_branch(self, repo: Path, remote_url: str, branch: str, provider: str) -> None:
+    def _fetch_target_branch(
+        self, repo: Path, remote_url: str, branch: str, provider: str
+    ) -> None:
         if not branch or branch.startswith("/"):
             raise ValueError(f"invalid target branch: {branch!r}")
-        if _git(repo, "check-ref-format", "--branch", branch, check=False).returncode != 0:
+        if (
+            _git(repo, "check-ref-format", "--branch", branch, check=False).returncode
+            != 0
+        ):
             raise ValueError(f"invalid target branch: {branch!r}")
         refspec = f"+refs/heads/{branch}:refs/remotes/agent-target/{branch}"
         try:
             with self._git_auth_env(provider) as env:
                 _git(
-                    repo, "fetch", "--no-tags", self._without_credentials(remote_url), refspec,
-                    timeout=self.config.clone_timeout, env=env,
+                    repo,
+                    "fetch",
+                    "--no-tags",
+                    self._without_credentials(remote_url),
+                    refspec,
+                    timeout=self.config.clone_timeout,
+                    env=env,
                 )
         except subprocess.CalledProcessError as exc:
-            raise RuntimeError(f"git fetch target branch failed: {redact_credentials((exc.stderr or '').strip())}") from exc
+            raise RuntimeError(
+                f"git fetch target branch failed: {redact_credentials((exc.stderr or '').strip())}"
+            ) from exc
 
     def cleanup(self, context: WorkspaceContext, *, success: bool) -> None:
         if context.cleaned:
             return
         errors: list[str] = []
         try:
-            owned_job = self._owned_path(str(context.job_root), self.config.worktree_parent)
+            owned_job = self._owned_path(
+                str(context.job_root), self.config.worktree_parent
+            )
             if owned_job is None:
                 # Never follow a job-root symlink that an Agent may have
                 # replaced. A symlink itself is safe to unlink; its target is
@@ -385,7 +562,11 @@ class WorkspaceManager:
                     shutil.rmtree(owned_job)
             except Exception as exc:
                 errors.append(f"job workspace cleanup: {exc}")
-            owned_clone = self._owned_path(str(context.clone_path), self.config.clone_parent) if context.clone_path else None
+            owned_clone = (
+                self._owned_path(str(context.clone_path), self.config.clone_parent)
+                if context.clone_path
+                else None
+            )
             if owned_clone and (
                 self.config.clone_cleanup == "always"
                 or (self.config.clone_cleanup == "on_success" and success)
@@ -400,11 +581,15 @@ class WorkspaceManager:
         if errors:
             raise RuntimeError("; ".join(errors))
 
-    def reclaim_orphan(self, *, source_repo: str | None, job_root: str | None, clone_path: str | None) -> None:
+    def reclaim_orphan(
+        self, *, source_repo: str | None, job_root: str | None, clone_path: str | None
+    ) -> None:
         """Reclaim workspace paths from a lease that expired after a crash."""
         job = self._owned_path(job_root, self.config.worktree_parent)
         clone = self._owned_path(clone_path, self.config.clone_parent)
-        owned_source = self._owned_path(source_repo, job) if source_repo and job else None
+        owned_source = (
+            self._owned_path(source_repo, job) if source_repo and job else None
+        )
         if owned_source and owned_source.is_dir():
             self._remove_worktrees(owned_source, job)
         if job:
@@ -434,11 +619,17 @@ class WorkspaceManager:
     def _remove_worktrees(self, source_repo: Path, job_root: Path) -> None:
         errors: list[str] = []
         result = _git(
-            source_repo, "worktree", "list", "--porcelain",
-            check=False, timeout=self.config.cleanup_timeout,
+            source_repo,
+            "worktree",
+            "list",
+            "--porcelain",
+            check=False,
+            timeout=self.config.cleanup_timeout,
         )
         if result.returncode != 0:
-            raise RuntimeError((result.stderr or result.stdout or "git worktree list failed").strip())
+            raise RuntimeError(
+                (result.stderr or result.stdout or "git worktree list failed").strip()
+            )
         for path in self._worktree_paths(result.stdout):
             if path.resolve() == source_repo.resolve():
                 continue
@@ -447,14 +638,31 @@ class WorkspaceManager:
             except ValueError:
                 continue
             removed = _git(
-                source_repo, "worktree", "remove", "--force", str(path),
-                check=False, timeout=self.config.cleanup_timeout,
+                source_repo,
+                "worktree",
+                "remove",
+                "--force",
+                str(path),
+                check=False,
+                timeout=self.config.cleanup_timeout,
             )
             if removed.returncode != 0:
-                errors.append((removed.stderr or removed.stdout or f"failed to remove {path}").strip())
-        pruned = _git(source_repo, "worktree", "prune", check=False, timeout=self.config.cleanup_timeout)
+                errors.append(
+                    (
+                        removed.stderr or removed.stdout or f"failed to remove {path}"
+                    ).strip()
+                )
+        pruned = _git(
+            source_repo,
+            "worktree",
+            "prune",
+            check=False,
+            timeout=self.config.cleanup_timeout,
+        )
         if pruned.returncode != 0:
-            errors.append((pruned.stderr or pruned.stdout or "git worktree prune failed").strip())
+            errors.append(
+                (pruned.stderr or pruned.stdout or "git worktree prune failed").strip()
+            )
         if errors:
             raise RuntimeError("; ".join(errors))
 
@@ -463,5 +671,7 @@ class WorkspaceManager:
         paths: list[Path] = []
         for line in output.splitlines():
             if line.startswith("worktree "):
-                paths.append(Path(line.removeprefix("worktree ").strip()).expanduser().resolve())
+                paths.append(
+                    Path(line.removeprefix("worktree ").strip()).expanduser().resolve()
+                )
         return paths

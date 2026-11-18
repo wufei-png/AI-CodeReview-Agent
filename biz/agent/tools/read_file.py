@@ -1,4 +1,5 @@
 """read_file tool: read file contents within the repo."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -43,7 +44,9 @@ class ReadFileTool(Tool):
     def __init__(self, repo_root: Path | str) -> None:
         self.repo_root = Path(repo_root)
 
-    def execute(self, *, path: str, offset: int = 0, limit: int = 500, **_) -> ToolResult:
+    def execute(
+        self, *, path: str, offset: int = 0, limit: int = 500, **_
+    ) -> ToolResult:
         # Resolve target inside repo.
         candidate = (self.repo_root / path).resolve(strict=False)
         if not is_path_safe(candidate, self.repo_root):

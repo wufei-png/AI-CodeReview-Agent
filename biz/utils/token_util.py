@@ -8,7 +8,9 @@ from biz.utils.log import logger
 _encoding_cache: Optional[tiktoken.Encoding] = None
 
 
-def _get_encoding_cached(encoding_name: str = "cl100k_base") -> Optional[tiktoken.Encoding]:
+def _get_encoding_cached(
+    encoding_name: str = "cl100k_base",
+) -> Optional[tiktoken.Encoding]:
     """
     获取编码器，带缓存和错误处理。
 
@@ -45,7 +47,7 @@ def _estimate_tokens_simple(text: str) -> int:
         return 0
 
     # 统计中文字符和英文字符
-    chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    chinese_chars = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
     other_chars = len(text) - chinese_chars
 
     # 估算：中文约2字符/token，英文/其他约4字符/token
@@ -70,7 +72,9 @@ def count_tokens(text: str) -> int:
     return _estimate_tokens_simple(text)
 
 
-def truncate_text_by_tokens(text: str, max_tokens: int, encoding_name: str = "cl100k_base") -> str:
+def truncate_text_by_tokens(
+    text: str, max_tokens: int, encoding_name: str = "cl100k_base"
+) -> str:
     """
     根据最大 token 数量截断文本。
 
@@ -94,7 +98,7 @@ def truncate_text_by_tokens(text: str, max_tokens: int, encoding_name: str = "cl
     if not text:
         return text
 
-    chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    chinese_chars = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
     other_chars = len(text) - chinese_chars
     # 估算每token对应的字符数
     chars_per_token = 2 if chinese_chars > other_chars else 4
@@ -104,7 +108,8 @@ def truncate_text_by_tokens(text: str, max_tokens: int, encoding_name: str = "cl
         return text
     return text[:max_chars]
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     text = "Hello, world! This is a test text for token counting."
     print(count_tokens(text))  # 输出：11
     print(truncate_text_by_tokens(text, 5))  # 输出："Hello, world!"

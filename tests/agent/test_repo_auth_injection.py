@@ -5,6 +5,7 @@ Covers:
   - _auth_url: URL rewriting / no-op rules / URL-encoding
   - _ensure_authenticated_remote: rewriting the cached repo's origin URL
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -83,7 +84,10 @@ class TestAuthUrl:
     def test_injects_gitlab_token_for_self_hosted(self, monkeypatch):
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "gl_tok")
         out = _auth_url("https://coding.codeages.work/he/devops/aicodereview.git")
-        assert out == "https://oauth2:gl_tok@coding.codeages.work/he/devops/aicodereview.git"
+        assert (
+            out
+            == "https://oauth2:gl_tok@coding.codeages.work/he/devops/aicodereview.git"
+        )
 
     def test_injects_gitea_token(self, monkeypatch):
         monkeypatch.setenv("GITEA_ACCESS_TOKEN", "gt_tok")
@@ -94,7 +98,10 @@ class TestAuthUrl:
         # `+`, `/`, `=` are reserved; `@` would shift the netloc.
         monkeypatch.setenv("GITHUB_ACCESS_TOKEN", "abc+def/ghi=jkl@mno")
         out = _auth_url("https://github.com/owner/repo.git")
-        assert out == "https://oauth2:abc%2Bdef%2Fghi%3Djkl%40mno@github.com/owner/repo.git"
+        assert (
+            out
+            == "https://oauth2:abc%2Bdef%2Fghi%3Djkl%40mno@github.com/owner/repo.git"
+        )
 
     def test_already_credentialed_url_unchanged(self, monkeypatch):
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "gl_tok")
@@ -103,7 +110,10 @@ class TestAuthUrl:
 
     def test_ssh_url_unchanged(self, monkeypatch):
         monkeypatch.setenv("GITHUB_ACCESS_TOKEN", "gh_tok")
-        assert _auth_url("git@github.com:owner/repo.git") == "git@github.com:owner/repo.git"
+        assert (
+            _auth_url("git@github.com:owner/repo.git")
+            == "git@github.com:owner/repo.git"
+        )
 
     def test_local_file_path_unchanged(self, monkeypatch):
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "gl_tok")
@@ -113,8 +123,10 @@ class TestAuthUrl:
         monkeypatch.delenv("GITLAB_ACCESS_TOKEN", raising=False)
         monkeypatch.delenv("GITHUB_ACCESS_TOKEN", raising=False)
         monkeypatch.delenv("GITEA_ACCESS_TOKEN", raising=False)
-        assert _auth_url("https://coding.codeages.work/he/proj.git") == \
-            "https://coding.codeages.work/he/proj.git"
+        assert (
+            _auth_url("https://coding.codeages.work/he/proj.git")
+            == "https://coding.codeages.work/he/proj.git"
+        )
 
     def test_url_with_port_preserves_port(self, monkeypatch):
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "gl_tok")
@@ -123,8 +135,10 @@ class TestAuthUrl:
 
     def test_empty_token_string_treated_as_unset(self, monkeypatch):
         monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "")
-        assert _auth_url("https://coding.codeages.work/he/proj.git") == \
-            "https://coding.codeages.work/he/proj.git"
+        assert (
+            _auth_url("https://coding.codeages.work/he/proj.git")
+            == "https://coding.codeages.work/he/proj.git"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -141,12 +155,16 @@ def bare_remote(tmp_path: Path) -> Path:
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "f.txt").write_text("v1\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "v1"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -166,12 +184,23 @@ def cached_repo_with_bare_origin(tmp_path: Path, bare_remote: Path) -> Path:
     # Set origin to a plain HTTPS URL (no creds). The remote doesn't need
     # to be reachable — we only test local URL manipulation.
     subprocess.run(
-        ["git", "remote", "set-url", "origin", "https://coding.example.com/group/proj.git"],
-        cwd=work, check=True, capture_output=True,
+        [
+            "git",
+            "remote",
+            "set-url",
+            "origin",
+            "https://coding.example.com/group/proj.git",
+        ],
+        cwd=work,
+        check=True,
+        capture_output=True,
     )
     r = subprocess.run(
         ["git", "remote", "get-url", "origin"],
-        cwd=work, check=True, capture_output=True, text=True,
+        cwd=work,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     assert "@" not in r.stdout  # no creds
     return work
@@ -191,10 +220,15 @@ class TestEnsureAuthenticatedRemote:
 
         r = subprocess.run(
             ["git", "remote", "get-url", "origin"],
-            cwd=cached_repo_with_bare_origin, check=True, capture_output=True, text=True,
+            cwd=cached_repo_with_bare_origin,
+            check=True,
+            capture_output=True,
+            text=True,
         )
         new_url = r.stdout.strip()
-        assert new_url == "https://oauth2:fake_token_123@coding.example.com/group/proj.git"
+        assert (
+            new_url == "https://oauth2:fake_token_123@coding.example.com/group/proj.git"
+        )
 
     def test_noop_when_token_unavailable(
         self, tmp_path, cached_repo_with_bare_origin: Path
@@ -202,7 +236,10 @@ class TestEnsureAuthenticatedRemote:
         syncer = LocalRepoSyncer(cache_root=tmp_path / "cache")
         original_url = subprocess.run(
             ["git", "remote", "get-url", "origin"],
-            cwd=cached_repo_with_bare_origin, check=True, capture_output=True, text=True,
+            cwd=cached_repo_with_bare_origin,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
 
         with patch(
@@ -213,7 +250,10 @@ class TestEnsureAuthenticatedRemote:
 
         after = subprocess.run(
             ["git", "remote", "get-url", "origin"],
-            cwd=cached_repo_with_bare_origin, check=True, capture_output=True, text=True,
+            cwd=cached_repo_with_bare_origin,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         assert after == original_url
 
@@ -224,7 +264,9 @@ class TestEnsureAuthenticatedRemote:
         cred_url = "https://user:preexisting@somewhere.example/proj.git"
         subprocess.run(
             ["git", "remote", "set-url", "origin", cred_url],
-            cwd=cached_repo_with_bare_origin, check=True, capture_output=True,
+            cwd=cached_repo_with_bare_origin,
+            check=True,
+            capture_output=True,
         )
 
         syncer = LocalRepoSyncer(cache_root=tmp_path / "cache")
@@ -236,7 +278,10 @@ class TestEnsureAuthenticatedRemote:
 
         after = subprocess.run(
             ["git", "remote", "get-url", "origin"],
-            cwd=cached_repo_with_bare_origin, check=True, capture_output=True, text=True,
+            cwd=cached_repo_with_bare_origin,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         assert after == cred_url
 

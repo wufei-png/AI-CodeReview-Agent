@@ -1,4 +1,5 @@
 """Independent durable Agent Review worker command."""
+
 from __future__ import annotations
 
 import argparse
@@ -22,11 +23,17 @@ from biz.agent.job_store import AgentJobStore  # noqa: E402
 from biz.agent.service import execute_claimed_job, reap_agent_review_workspaces  # noqa: E402
 
 
-def check_worker_configuration(config: AgentReviewConfig | None = None) -> dict[str, object]:
+def check_worker_configuration(
+    config: AgentReviewConfig | None = None,
+) -> dict[str, object]:
     """Check local readiness without claiming work or calling an external backend."""
     config = config or load_agent_review_config()
     config.ensure_runtime_directories()
-    for directory in {config.clone_parent, config.worktree_parent, config.job_db.parent}:
+    for directory in {
+        config.clone_parent,
+        config.worktree_parent,
+        config.job_db.parent,
+    }:
         with tempfile.TemporaryFile(dir=directory):
             pass
     AgentJobStore(config.job_db)  # Schema/writability check; no claim or maintenance.
@@ -40,12 +47,23 @@ def check_worker_configuration(config: AgentReviewConfig | None = None) -> dict[
         if endpoint.scheme not in {"http", "https"} or not endpoint.hostname:
             raise ValueError("OPENCODE_API_URL must be an HTTP(S) endpoint")
     else:
-        binary = {"codex": config.codex_bin, "claude": config.claude_bin, "pi": config.pi_bin}[config.backend]
+        binary = {
+            "codex": config.codex_bin,
+            "claude": config.claude_bin,
+            "pi": config.pi_bin,
+        }[config.backend]
         if not shutil.which(binary):
             raise ValueError(f"selected {config.backend} CLI is not executable")
-    return {"backend": config.backend, "job_db": str(config.job_db), "local_checks": "passed",
-            "external_auth_and_connectivity": "not checked",
-            "worker_platform_clis": {provider: bool(shutil.which(binary)) for provider, binary in config.platform_clis.items()}}
+    return {
+        "backend": config.backend,
+        "job_db": str(config.job_db),
+        "local_checks": "passed",
+        "external_auth_and_connectivity": "not checked",
+        "worker_platform_clis": {
+            provider: bool(shutil.which(binary))
+            for provider, binary in config.platform_clis.items()
+        },
+    }
 
 
 def run_worker(*, once: bool = False, poll_interval: float = 1.0) -> None:
@@ -57,23 +75,31 @@ def run_worker(*, once: bool = False, poll_interval: float = 1.0) -> None:
     def request_stop(_signum, _frame) -> None:
         stop.set()
 
-    previous_signals = {sig: signal.signal(sig, request_stop) for sig in (signal.SIGTERM, signal.SIGINT)}
+    previous_signals = {
+        sig: signal.signal(sig, request_stop) for sig in (signal.SIGTERM, signal.SIGINT)
+    }
     failures: list[Exception] = []
     maintenance = None
     try:
         reap_agent_review_workspaces()
-        AgentJobStore(config.job_db).delete_expired(retention_days=config.job_retention_days)
+        AgentJobStore(config.job_db).delete_expired(
+            retention_days=config.job_retention_days
+        )
 
         def maintain() -> None:
             try:
                 while not stop.wait(60):
                     reap_agent_review_workspaces()
-                    AgentJobStore(config.job_db).delete_expired(retention_days=config.job_retention_days)
+                    AgentJobStore(config.job_db).delete_expired(
+                        retention_days=config.job_retention_days
+                    )
             except Exception as exc:
                 failures.append(exc)
                 stop.set()
 
-        maintenance = threading.Thread(target=maintain, name="agent-review-maintenance", daemon=True)
+        maintenance = threading.Thread(
+            target=maintain, name="agent-review-maintenance", daemon=True
+        )
         maintenance.start()
 
         def loop() -> None:
@@ -123,8 +149,14 @@ def run_worker(*, once: bool = False, poll_interval: float = 1.0) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run durable Agent Review workers")
-    parser.add_argument("--check", action="store_true", help="check local configuration without claiming any job")
-    parser.add_argument("--once", action="store_true", help="claim at most one job per worker thread")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="check local configuration without claiming any job",
+    )
+    parser.add_argument(
+        "--once", action="store_true", help="claim at most one job per worker thread"
+    )
     parser.add_argument("--poll-interval", type=float, default=1.0)
     args = parser.parse_args()
     if args.check:

@@ -11,9 +11,14 @@ from biz.agent.tool_registry import ToolRegistry
 
 class _CounterTool(Tool):
     """A tool that returns its 'n' argument as output."""
+
     name = "counter"
     description = "returns n"
-    parameters = {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+    parameters = {
+        "type": "object",
+        "properties": {"n": {"type": "integer"}},
+        "required": ["n"],
+    }
 
     def execute(self, **kwargs):
         return ToolResult(True, str(kwargs["n"]))
@@ -28,9 +33,11 @@ def _adapter_returning(responses):
 
 class TestAgentRunner:
     def test_single_round_terminates_with_content(self):
-        client = _adapter_returning([
-            {"content": "done", "tool_calls": [], "raw": None},
-        ])
+        client = _adapter_returning(
+            [
+                {"content": "done", "tool_calls": [], "raw": None},
+            ]
+        )
         adapter = LLMAdapter(client, use_native=True)
         runner = AgentRunner(adapter=adapter, registry=ToolRegistry(), max_iterations=5)
         result = runner.run([{"role": "user", "content": "hi"}])
@@ -39,9 +46,13 @@ class TestAgentRunner:
 
     def test_multi_round_with_tools(self):
         responses = [
-            {"content": "calling counter", "tool_calls": [
-                {"id": "1", "name": "counter", "arguments": {"n": 42}},
-            ], "raw": None},
+            {
+                "content": "calling counter",
+                "tool_calls": [
+                    {"id": "1", "name": "counter", "arguments": {"n": 42}},
+                ],
+                "raw": None,
+            },
             {"content": "the answer is 42", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -56,9 +67,13 @@ class TestAgentRunner:
     def test_max_iterations_returns_last_assistant_content(self):
         # Always returns a tool call.
         responses = [
-            {"content": None, "tool_calls": [
-                {"id": str(i), "name": "counter", "arguments": {"n": i}},
-            ], "raw": None}
+            {
+                "content": None,
+                "tool_calls": [
+                    {"id": str(i), "name": "counter", "arguments": {"n": i}},
+                ],
+                "raw": None,
+            }
             for i in range(3)
         ]
         client = _adapter_returning(responses)
@@ -76,12 +91,18 @@ class TestAgentRunner:
             name = "boom"
             description = ""
             parameters = {"type": "object", "properties": {}}
+
             def execute(self, **kwargs):
                 raise RuntimeError("explode")
+
         responses = [
-            {"content": "trying", "tool_calls": [
-                {"id": "1", "name": "boom", "arguments": {}},
-            ], "raw": None},
+            {
+                "content": "trying",
+                "tool_calls": [
+                    {"id": "1", "name": "boom", "arguments": {}},
+                ],
+                "raw": None,
+            },
             {"content": "done", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -96,10 +117,15 @@ class TestAgentRunner:
     def test_token_cap_triggers_degradation(self):
         # Force a very low cap so the first tool result already blows it.
         from biz.agent.runner import AgentRunner as AR
+
         responses = [
-            {"content": "calling", "tool_calls": [
-                {"id": "1", "name": "counter", "arguments": {"n": 1}},
-            ], "raw": None},
+            {
+                "content": "calling",
+                "tool_calls": [
+                    {"id": "1", "name": "counter", "arguments": {"n": 1}},
+                ],
+                "raw": None,
+            },
             {"content": "done", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -119,7 +145,9 @@ class TestAgentRunner:
         ]
         client = _adapter_returning(responses)
         adapter = LLMAdapter(client, use_native=True)
-        runner = AgentRunner(adapter=adapter, registry=ToolRegistry(), max_iterations=10)
+        runner = AgentRunner(
+            adapter=adapter, registry=ToolRegistry(), max_iterations=10
+        )
         with pytest.raises(InvalidToolCallStreak):
             runner.run([{"role": "user", "content": "?"}])
 
@@ -129,9 +157,13 @@ class TestAgentRunner:
         when an agentic review misbehaves. INFO must stay quiet for these.
         """
         responses = [
-            {"content": "calling counter", "tool_calls": [
-                {"id": "1", "name": "counter", "arguments": {"n": 7}},
-            ], "raw": None},
+            {
+                "content": "calling counter",
+                "tool_calls": [
+                    {"id": "1", "name": "counter", "arguments": {"n": 7}},
+                ],
+                "raw": None,
+            },
             {"content": "the answer is 7", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -143,7 +175,9 @@ class TestAgentRunner:
         with caplog.at_level(logging.DEBUG):
             runner.run([{"role": "user", "content": "?"}])
 
-        debug_msgs = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
+        debug_msgs = [
+            r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG
+        ]
         # Per-round detail must include the tool name and the assistant content.
         joined = "\n".join(debug_msgs)
         assert "counter" in joined
@@ -153,9 +187,13 @@ class TestAgentRunner:
         """At INFO level the per-round detail line must NOT fire — only the
         existing one-line summary belongs to INFO. (Caplog level is INFO.)"""
         responses = [
-            {"content": "calling counter", "tool_calls": [
-                {"id": "1", "name": "counter", "arguments": {"n": 7}},
-            ], "raw": None},
+            {
+                "content": "calling counter",
+                "tool_calls": [
+                    {"id": "1", "name": "counter", "arguments": {"n": 7}},
+                ],
+                "raw": None,
+            },
             {"content": "the answer is 7", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -167,9 +205,15 @@ class TestAgentRunner:
         with caplog.at_level(logging.INFO):
             runner.run([{"role": "user", "content": "?"}])
 
-        info_msgs = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
-        assert any("agent round" in m for m in info_msgs), "expected existing INFO summary"
-        debug_msgs = [r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG]
+        info_msgs = [
+            r.getMessage() for r in caplog.records if r.levelno == logging.INFO
+        ]
+        assert any("agent round" in m for m in info_msgs), (
+            "expected existing INFO summary"
+        )
+        debug_msgs = [
+            r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG
+        ]
         assert not debug_msgs, f"DEBUG messages leaked at INFO level: {debug_msgs}"
 
     def test_tool_output_truncated_to_max_tokens(self):
@@ -178,13 +222,18 @@ class TestAgentRunner:
             name = "big"
             description = ""
             parameters = {"type": "object", "properties": {}}
+
             def execute(self, **kwargs):
                 return ToolResult(True, "x" * 200_000)
 
         responses = [
-            {"content": "calling", "tool_calls": [
-                {"id": "1", "name": "big", "arguments": {}},
-            ], "raw": None},
+            {
+                "content": "calling",
+                "tool_calls": [
+                    {"id": "1", "name": "big", "arguments": {}},
+                ],
+                "raw": None,
+            },
             {"content": "done", "tool_calls": [], "raw": None},
         ]
         client = _adapter_returning(responses)
@@ -192,7 +241,9 @@ class TestAgentRunner:
         reg = ToolRegistry()
         reg.register(_BigTool())
         runner = AgentRunner(
-            adapter=adapter, registry=reg, max_iterations=5,
+            adapter=adapter,
+            registry=reg,
+            max_iterations=5,
             tool_output_max_tokens=50,
         )
         result = runner.run([{"role": "user", "content": "?"}])

@@ -1,4 +1,5 @@
 """Lazy local clone/fetch of repositories for agentic review."""
+
 from __future__ import annotations
 
 import errno
@@ -159,8 +160,11 @@ class LocalRepoSyncer:
                 if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
                     raise
                 if time.monotonic() >= deadline:
-                    logger.warning("could not acquire lock %s within %ds, proceeding without lock",
-                                   lock_path, self.lock_wait_seconds)
+                    logger.warning(
+                        "could not acquire lock %s within %ds, proceeding without lock",
+                        lock_path,
+                        self.lock_wait_seconds,
+                    )
                     break
                 time.sleep(0.5)
         try:
@@ -183,7 +187,9 @@ class LocalRepoSyncer:
                 timeout=self.clone_timeout,
             )
         except subprocess.TimeoutExpired as e:
-            raise RuntimeError(f"git clone timed out after {self.clone_timeout}s") from e
+            raise RuntimeError(
+                f"git clone timed out after {self.clone_timeout}s"
+            ) from e
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"git clone failed: {e.stderr.strip()}") from e
 
@@ -191,7 +197,11 @@ class LocalRepoSyncer:
         try:
             subprocess.run(
                 ["git", "fetch", "--all", "--prune"],
-                cwd=target, check=True, capture_output=True, text=True, timeout=self.clone_timeout,
+                cwd=target,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.clone_timeout,
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"git fetch failed: {e.stderr.strip()}") from e
@@ -205,7 +215,12 @@ class LocalRepoSyncer:
             cmd = ["git", "reset", "--hard", f"origin/{ref}"]
         try:
             subprocess.run(
-                cmd, cwd=target, check=True, capture_output=True, text=True, timeout=self.clone_timeout,
+                cmd,
+                cwd=target,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.clone_timeout,
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"git checkout failed: {e.stderr.strip()}") from e

@@ -56,5 +56,6 @@ class CompletionMessage(BaseModel):
     "role": "assistant",
     }
     """
+
     message: dict
     role: str

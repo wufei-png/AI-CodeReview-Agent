@@ -16,12 +16,16 @@ def bare_remote(tmp_path: Path) -> Path:
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "f.txt").write_text("v1\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "v1"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -56,7 +60,11 @@ class TestLocalRepoSyncer:
         cache = tmp_path / "cache"
         syncer = LocalRepoSyncer(cache_root=cache, clone_timeout=5)
         with pytest.raises(RuntimeError):
-            syncer.sync_to(url="https://nonexistent.example.invalid/repo.git", key="proj", ref="main")
+            syncer.sync_to(
+                url="https://nonexistent.example.invalid/repo.git",
+                key="proj",
+                ref="main",
+            )
 
     def test_key_sanitized_to_safe_dirname(self, tmp_path, bare_remote):
         cache = tmp_path / "cache"

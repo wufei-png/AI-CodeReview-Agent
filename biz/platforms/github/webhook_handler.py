@@ -7,49 +7,54 @@ import fnmatch
 from biz.utils.log import logger
 
 
-
 def filter_changes(changes: list):
-    '''
+    """
     过滤数据，只保留支持的文件类型以及必要的字段信息
     专门处理GitHub格式的变更
-    '''
+    """
     # 从环境变量中获取支持的文件扩展名
-    supported_extensions = os.getenv('SUPPORTED_EXTENSIONS', '.java,.py,.php').split(',')
-    
+    supported_extensions = os.getenv("SUPPORTED_EXTENSIONS", ".java,.py,.php").split(
+        ","
+    )
+
     # 筛选出未被删除的文件
     not_deleted_changes = []
     for change in changes:
         # 优先检查status字段是否为"removed"
-        if change.get('status') == 'removed':
-            logger.info(f"Detected file deletion via status field: {change.get('new_path')}")
+        if change.get("status") == "removed":
+            logger.info(
+                f"Detected file deletion via status field: {change.get('new_path')}"
+            )
             continue
-            
+
         # 如果没有status字段或status不为"removed"，继续检查diff模式
-        diff = change.get('diff', '')
+        diff = change.get("diff", "")
         if diff:
-            diff_header_match = re.match(r'@@ -\d+,\d+ \+0,0 @@', diff)
+            diff_header_match = re.match(r"@@ -\d+,\d+ \+0,0 @@", diff)
             if diff_header_match:
                 # 检查除了diff头部外的所有行是否都以减号开头
-                diff_lines = diff.split('\n')[1:]  # 跳过diff头部
-                if all(line.startswith('-') or not line for line in diff_lines):
-                    logger.info(f"Detected file deletion via diff pattern: {change.get('new_path')}")
+                diff_lines = diff.split("\n")[1:]  # 跳过diff头部
+                if all(line.startswith("-") or not line for line in diff_lines):
+                    logger.info(
+                        f"Detected file deletion via diff pattern: {change.get('new_path')}"
+                    )
                     continue
-                    
+
         not_deleted_changes.append(change)
-    
+
     logger.info(f"SUPPORTED_EXTENSIONS: {supported_extensions}")
     logger.info(f"After filtering deleted files: {not_deleted_changes}")
-    
+
     # 过滤 `new_path` 以支持的扩展名结尾的元素, 仅保留diff和new_path字段
     filtered_changes = [
         {
-            'diff': item.get('diff', ''),
-            'new_path': item['new_path'],
-            'additions': item.get('additions', 0),
-            'deletions': item.get('deletions', 0),
+            "diff": item.get("diff", ""),
+            "new_path": item["new_path"],
+            "additions": item.get("additions", 0),
+            "deletions": item.get("deletions", 0),
         }
         for item in not_deleted_changes
-        if any(item.get('new_path', '').endswith(ext) for ext in supported_extensions)
+        if any(item.get("new_path", "").endswith(ext) for ext in supported_extensions)
     ]
     logger.info(f"After filtering by extension: {filtered_changes}")
     return filtered_changes
@@ -69,19 +74,23 @@ class PullRequestHandler:
 
     def parse_event_type(self):
         # 提取 event_type
-        self.event_type = 'pull_request'  # GitHub webhook 的事件类型通过 header 中的 X-GitHub-Event 获取，API 中已处理
+        self.event_type = "pull_request"  # GitHub webhook 的事件类型通过 header 中的 X-GitHub-Event 获取，API 中已处理
         self.parse_pull_request_event()
 
     def parse_pull_request_event(self):
         # 提取 Pull Request 的相关参数
-        self.pull_request_number = self.webhook_data.get('pull_request', {}).get('number')
-        self.repo_full_name = self.webhook_data.get('repository', {}).get('full_name')
-        self.action = self.webhook_data.get('action')
+        self.pull_request_number = self.webhook_data.get("pull_request", {}).get(
+            "number"
+        )
+        self.repo_full_name = self.webhook_data.get("repository", {}).get("full_name")
+        self.action = self.webhook_data.get("action")
 
     def get_pull_request_changes(self) -> list:
         # 检查是否为 Pull Request Hook 事件
-        if self.event_type != 'pull_request':
-            logger.warn(f"Invalid event type: {self.event_type}. Only 'pull_request' event is supported now.")
+        if self.event_type != "pull_request":
+            logger.warn(
+                f"Invalid event type: {self.event_type}. Only 'pull_request' event is supported now."
+            )
             return []
 
         # GitHub pull request changes API可能存在延迟，多次尝试
@@ -91,12 +100,13 @@ class PullRequestHandler:
             # 调用 GitHub API 获取 Pull Request 的 files（变更）
             url = f"{self.api_url}/repos/{self.repo_full_name}/pulls/{self.pull_request_number}/files"
             headers = {
-                'Authorization': f'token {self.github_token}',
-                'Accept': 'application/vnd.github.v3+json'
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json",
             }
             response = provider_http.get(url, headers=headers)
             logger.debug(
-                f"Get changes response from GitHub (attempt {attempt + 1}): {response.status_code}, URL: {url}")
+                f"Get changes response from GitHub (attempt {attempt + 1}): {response.status_code}, URL: {url}"
+            )
 
             # 检查请求是否成功
             if response.status_code == 200:
@@ -106,20 +116,23 @@ class PullRequestHandler:
                     changes = []
                     for file in files:
                         change = {
-                            'old_path': file.get('filename'),
-                            'new_path': file.get('filename'),
-                            'diff': file.get('patch', ''),
-                            'additions': file.get('additions', 0),
-                            'deletions': file.get('deletions', 0)
+                            "old_path": file.get("filename"),
+                            "new_path": file.get("filename"),
+                            "diff": file.get("patch", ""),
+                            "additions": file.get("additions", 0),
+                            "deletions": file.get("deletions", 0),
                         }
                         changes.append(change)
                     return changes
                 else:
                     logger.info(
-                        f"Changes is empty, retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries}), URL: {url}")
+                        f"Changes is empty, retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries}), URL: {url}"
+                    )
                     time.sleep(retry_delay)
             else:
-                logger.warn(f"Failed to get changes from GitHub (URL: {url}): {response.status_code}")
+                logger.warn(
+                    f"Failed to get changes from GitHub (URL: {url}): {response.status_code}"
+                )
                 return []
 
         logger.warning(f"Max retries ({max_retries}) reached. Changes is still empty.")
@@ -127,18 +140,18 @@ class PullRequestHandler:
 
     def get_pull_request_commits(self) -> list:
         # 检查是否为 Pull Request Hook 事件
-        if self.event_type != 'pull_request':
+        if self.event_type != "pull_request":
             return []
 
         # 调用 GitHub API 获取 Pull Request 的 commits
         url = f"{self.api_url}/repos/{self.repo_full_name}/pulls/{self.pull_request_number}/commits"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
         response = provider_http.get(url, headers=headers)
         logger.debug(f"Get commits response from GitHub: {response.status_code}")
-        
+
         # 检查请求是否成功
         if response.status_code == 200:
             # 将GitHub的commits转换为GitLab格式的commits
@@ -146,13 +159,19 @@ class PullRequestHandler:
             gitlab_format_commits = []
             for commit in github_commits:
                 gitlab_commit = {
-                    'id': commit.get('sha'),
-                    'title': commit.get('commit', {}).get('message', '').split('\n')[0],
-                    'message': commit.get('commit', {}).get('message', ''),
-                    'author_name': commit.get('commit', {}).get('author', {}).get('name'),
-                    'author_email': commit.get('commit', {}).get('author', {}).get('email'),
-                    'created_at': commit.get('commit', {}).get('author', {}).get('date'),
-                    'web_url': commit.get('html_url')
+                    "id": commit.get("sha"),
+                    "title": commit.get("commit", {}).get("message", "").split("\n")[0],
+                    "message": commit.get("commit", {}).get("message", ""),
+                    "author_name": commit.get("commit", {})
+                    .get("author", {})
+                    .get("name"),
+                    "author_email": commit.get("commit", {})
+                    .get("author", {})
+                    .get("email"),
+                    "created_at": commit.get("commit", {})
+                    .get("author", {})
+                    .get("date"),
+                    "web_url": commit.get("html_url"),
                 }
                 gitlab_format_commits.append(gitlab_commit)
             return gitlab_format_commits
@@ -163,12 +182,10 @@ class PullRequestHandler:
     def add_pull_request_notes(self, review_result):
         url = f"{self.api_url}/repos/{self.repo_full_name}/issues/{self.pull_request_number}/comments"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
-        data = {
-            'body': review_result
-        }
+        data = {"body": review_result}
         response = provider_http.post(url, headers=headers, json=data)
         logger.debug(f"Add comment to GitHub PR {url}: {response.status_code}")
         if response.status_code == 201:
@@ -179,15 +196,15 @@ class PullRequestHandler:
     def target_branch_protected(self) -> bool:
         url = f"{self.api_url}/repos/{self.repo_full_name}/branches?protected=true"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
 
         response = provider_http.get(url, headers=headers)
         if response.status_code == 200:
             data = response.json()
-            target_branch = self.webhook_data['pull_request']['base']['ref']
-            return any(fnmatch.fnmatch(target_branch, item['name']) for item in data)
+            target_branch = self.webhook_data["pull_request"]["base"]["ref"]
+            return any(fnmatch.fnmatch(target_branch, item["name"]) for item in data)
         else:
             logger.warn(f"Failed to get protected branches: {response.status_code}")
             return False
@@ -207,29 +224,31 @@ class PushHandler:
 
     def parse_event_type(self):
         # 提取 event_type
-        self.event_type = 'push'  # GitHub webhook 的事件类型通过 header 中的 X-GitHub-Event 获取，API 中已处理
+        self.event_type = "push"  # GitHub webhook 的事件类型通过 header 中的 X-GitHub-Event 获取，API 中已处理
         self.parse_push_event()
 
     def parse_push_event(self):
         # 提取 Push 事件的相关参数
-        self.repo_full_name = self.webhook_data.get('repository', {}).get('full_name')
-        self.branch_name = self.webhook_data.get('ref', '').replace('refs/heads/', '')
-        self.commit_list = self.webhook_data.get('commits', [])
+        self.repo_full_name = self.webhook_data.get("repository", {}).get("full_name")
+        self.branch_name = self.webhook_data.get("ref", "").replace("refs/heads/", "")
+        self.commit_list = self.webhook_data.get("commits", [])
 
     def get_push_commits(self) -> list:
         # 检查是否为 Push 事件
-        if self.event_type != 'push':
-            logger.warn(f"Invalid event type: {self.event_type}. Only 'push' event is supported now.")
+        if self.event_type != "push":
+            logger.warn(
+                f"Invalid event type: {self.event_type}. Only 'push' event is supported now."
+            )
             return []
 
         # 提取提交信息
         commit_details = []
         for commit in self.commit_list:
             commit_info = {
-                'message': commit.get('message'),
-                'author': commit.get('author', {}).get('name'),
-                'timestamp': commit.get('timestamp'),
-                'url': commit.get('url'),
+                "message": commit.get("message"),
+                "author": commit.get("author", {}).get("name"),
+                "timestamp": commit.get("timestamp"),
+                "url": commit.get("url"),
             }
             commit_details.append(commit_info)
 
@@ -243,19 +262,17 @@ class PushHandler:
             return
 
         # 获取最后一个提交的ID
-        last_commit_id = self.commit_list[-1].get('id')
+        last_commit_id = self.commit_list[-1].get("id")
         if not last_commit_id:
             logger.error("Last commit ID not found.")
             return
 
         url = f"{self.api_url}/repos/{self.repo_full_name}/commits/{last_commit_id}/comments"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
-        data = {
-            'body': message
-        }
+        data = {"body": message}
         response = provider_http.post(url, headers=headers, json=data)
         logger.debug(f"Add comment to commit {last_commit_id}: {response.status_code}")
         if response.status_code == 201:
@@ -267,69 +284,74 @@ class PushHandler:
         # 获取仓库提交信息
         url = f"{self.api_url}/repos/{self.repo_full_name}/commits?sha={sha}&per_page={per_page}&page={page}"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
         response = provider_http.get(url, headers=headers)
         logger.debug(
-            f"Get commits response from GitHub for repository_commits: {response.status_code}, URL: {url}")
+            f"Get commits response from GitHub for repository_commits: {response.status_code}, URL: {url}"
+        )
 
         if response.status_code == 200:
             return response.json()
         else:
-            logger.warn(
-                f"Failed to get commits for sha {sha}: {response.status_code}")
+            logger.warn(f"Failed to get commits for sha {sha}: {response.status_code}")
             return []
 
     def get_parent_commit_id(self, commit_id: str) -> str:
         url = f"{self.api_url}/repos/{self.repo_full_name}/commits/{commit_id}"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
         response = provider_http.get(url, headers=headers)
         logger.debug(
-            f"Get commit response from GitHub: {response.status_code}, URL: {url}")
+            f"Get commit response from GitHub: {response.status_code}, URL: {url}"
+        )
 
-        if response.status_code == 200 and response.json().get('parents'):
-            return response.json().get('parents')[0].get('sha', '')
+        if response.status_code == 200 and response.json().get("parents"):
+            return response.json().get("parents")[0].get("sha", "")
         return ""
 
     def repository_compare(self, base: str, head: str):
         # 比较两个提交之间的差异
         url = f"{self.api_url}/repos/{self.repo_full_name}/compare/{base}...{head}"
         headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json",
         }
         response = provider_http.get(url, headers=headers)
         logger.debug(
-            f"Get changes response from GitHub for repository_compare: {response.status_code}, URL: {url}")
+            f"Get changes response from GitHub for repository_compare: {response.status_code}, URL: {url}"
+        )
 
         if response.status_code == 200:
             # 转换为GitLab格式的diffs
-            files = response.json().get('files', [])
+            files = response.json().get("files", [])
             diffs = []
             for file in files:
                 diff = {
-                    'old_path': file.get('filename'),
-                    'new_path': file.get('filename'),
-                    'diff': file.get('patch', ''),
-                    'status': file.get('status', ''),
-                    'additions': file.get('additions', 0),
-                    'deletions': file.get('deletions', 0),
+                    "old_path": file.get("filename"),
+                    "new_path": file.get("filename"),
+                    "diff": file.get("patch", ""),
+                    "status": file.get("status", ""),
+                    "additions": file.get("additions", 0),
+                    "deletions": file.get("deletions", 0),
                 }
                 diffs.append(diff)
             return diffs
         else:
             logger.warn(
-                f"Failed to get changes for repository_compare: {response.status_code}")
+                f"Failed to get changes for repository_compare: {response.status_code}"
+            )
             return []
 
     def get_push_changes(self) -> list:
         # 检查是否为 Push 事件
-        if self.event_type != 'push':
-            logger.warn(f"Invalid event type: {self.event_type}. Only 'push' event is supported now.")
+        if self.event_type != "push":
+            logger.warn(
+                f"Invalid event type: {self.event_type}. Only 'push' event is supported now."
+            )
             return []
 
         # 如果没有提交，返回空列表
@@ -338,33 +360,35 @@ class PushHandler:
             return []
 
         # 优先尝试compare API获取变更
-        before = self.webhook_data.get('before', '')
-        after = self.webhook_data.get('after', '')
+        before = self.webhook_data.get("before", "")
+        after = self.webhook_data.get("after", "")
         if before and after:
             # GitHub没有0000000的写法，但我们可以检查是否是创建或删除分支事件
-            if self.webhook_data.get('created', False):
+            if self.webhook_data.get("created", False):
                 # 创建分支处理
-                first_commit_id = self.commit_list[0].get('id')
+                first_commit_id = self.commit_list[0].get("id")
                 if first_commit_id:
                     parent_commit_id = self.get_parent_commit_id(first_commit_id)
                     if parent_commit_id:
                         before = parent_commit_id
-            elif self.webhook_data.get('deleted', False):
+            elif self.webhook_data.get("deleted", False):
                 # 删除分支处理
                 return []
-            
+
             return self.repository_compare(before, after)
         else:
             # 如果before和after不存在，尝试通过commits获取
-            logger.info("before or after not found in webhook data, trying to get changes from commits.")
-            
+            logger.info(
+                "before or after not found in webhook data, trying to get changes from commits."
+            )
+
             changes = []
             for commit in self.commit_list:
-                commit_id = commit.get('id')
+                commit_id = commit.get("id")
                 if commit_id:
                     parent_id = self.get_parent_commit_id(commit_id)
                     if parent_id:
                         commit_changes = self.repository_compare(parent_id, commit_id)
                         changes.extend(commit_changes)
-            
-            return changes 
+
+            return changes

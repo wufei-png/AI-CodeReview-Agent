@@ -1,8 +1,15 @@
 import os
 
 
-def get_directory_tree(directory, ignore_spec=None, max_depth=2, depth=0, project_root=None, prefix="",
-                       only_dirs=False):
+def get_directory_tree(
+    directory,
+    ignore_spec=None,
+    max_depth=2,
+    depth=0,
+    project_root=None,
+    prefix="",
+    only_dirs=False,
+):
     """
     以 tree 命令的格式返回目录结构，并应用 .gitignore 规则。
 
@@ -43,15 +50,22 @@ def get_directory_tree(directory, ignore_spec=None, max_depth=2, depth=0, projec
             continue  # 忽略匹配的文件/目录
 
         # 是否是当前目录的最后一个元素
-        is_last = (index == len(entries) - 1)
+        is_last = index == len(entries) - 1
         connector = "└── " if is_last else "├── "
         tree_lines.append(prefix + connector + entry)
 
         # 如果只返回目录且是目录，递归扫描子目录
         if os.path.isdir(path):
             new_prefix = prefix + ("    " if is_last else "│   ")
-            sub_tree = get_directory_tree(path, ignore_spec, max_depth, depth + 1, project_root, new_prefix,
-                                          only_dirs=only_dirs)
+            sub_tree = get_directory_tree(
+                path,
+                ignore_spec,
+                max_depth,
+                depth + 1,
+                project_root,
+                new_prefix,
+                only_dirs=only_dirs,
+            )
             if sub_tree:  # 如果子目录有内容，添加到 tree_lines
                 tree_lines.extend(sub_tree.split("\n"))  # 将子目录内容拆分为列表并扩展
 

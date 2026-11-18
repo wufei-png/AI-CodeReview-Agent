@@ -1,4 +1,5 @@
 """Load Jinja2-rendered prompt templates for the agent."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,6 +23,9 @@ def load_prompt(prompt_key: str, style: str = "professional") -> dict[str, Any]:
         return Template(s).render(style=style)
 
     return {
-        "system_message": {"role": "system", "content": render(prompts["system_prompt"])},
+        "system_message": {
+            "role": "system",
+            "content": render(prompts["system_prompt"]),
+        },
         "user_message": {"role": "user", "content": render(prompts["user_prompt"])},
     }

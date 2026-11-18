@@ -42,7 +42,9 @@ class ComplexityReviewFunc(BaseReviewFunc):
 
         # 获取top_n数量（正整数）
         while True:
-            top_n_input = input("请输入需要分析的复杂度最高文件数量（默认10）: ").strip()
+            top_n_input = input(
+                "请输入需要分析的复杂度最高文件数量（默认10）: "
+            ).strip()
             if not top_n_input:  # 用户直接回车，使用默认值
                 self.top_n = 10
                 break
@@ -65,7 +67,9 @@ class ComplexityReviewFunc(BaseReviewFunc):
         for file_info in tqdm(analysis_result, desc="分析文件", unit="file"):
             functions.extend(file_info.function_list)  # 提取所有函数
 
-        top_functions = nlargest(self.top_n, functions, key=lambda f: f.cyclomatic_complexity)
+        top_functions = nlargest(
+            self.top_n, functions, key=lambda f: f.cyclomatic_complexity
+        )
         return top_functions
 
     # def process(self):
@@ -80,8 +84,10 @@ class ComplexityReviewFunc(BaseReviewFunc):
         top_functions = self.find_most_complex_functions()
         print("🔥 以下是最复杂的函数：")
         for func in top_functions:
-            print(f"{func.name} (文件: {func.filename}, 复杂度: {func.cyclomatic_complexity})")
+            print(
+                f"{func.name} (文件: {func.filename}, 复杂度: {func.cyclomatic_complexity})"
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ComplexityReviewFunc().process()

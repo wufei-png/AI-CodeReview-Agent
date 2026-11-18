@@ -21,7 +21,11 @@ from biz.agent.backends import (
 from biz.agent.config import AgentReviewConfig, load_agent_review_config
 from biz.agent.job_store import AgentJobStore
 from biz.agent.review_request import AgentReviewRequest, build_prompt, from_webhook
-from biz.agent.workspace import RepositoryResolver, WorkspaceManager, normalize_remote_url
+from biz.agent.workspace import (
+    RepositoryResolver,
+    WorkspaceManager,
+    normalize_remote_url,
+)
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -41,40 +45,83 @@ def _local_repo(path: Path, remote: str) -> Path:
 
 
 def test_normalize_remote_url_equates_https_and_ssh():
-    assert normalize_remote_url("https://gitlab.example.com/team/payment.git") == "gitlab.example.com/team/payment"
-    assert normalize_remote_url("git@gitlab.example.com:team/payment.git") == "gitlab.example.com/team/payment"
-    assert normalize_remote_url("https://gitlab.example.com:8443/team/payment.git") != normalize_remote_url("https://gitlab.example.com:9443/team/payment.git")
+    assert (
+        normalize_remote_url("https://gitlab.example.com/team/payment.git")
+        == "gitlab.example.com/team/payment"
+    )
+    assert (
+        normalize_remote_url("git@gitlab.example.com:team/payment.git")
+        == "gitlab.example.com/team/payment"
+    )
+    assert normalize_remote_url(
+        "https://gitlab.example.com:8443/team/payment.git"
+    ) != normalize_remote_url("https://gitlab.example.com:9443/team/payment.git")
 
 
 def test_resolver_direct_path_and_bounded_recursive_search(tmp_path):
     root = tmp_path / "repos"
-    direct = _local_repo(root / "team" / "payment", "git@gitlab.example.com:team/payment.git")
-    config = AgentReviewConfig(repo_roots={"https://gitlab.example.com/team/": root / "team"}, discovery_max_depth=2)
+    direct = _local_repo(
+        root / "team" / "payment", "git@gitlab.example.com:team/payment.git"
+    )
+    config = AgentReviewConfig(
+        repo_roots={"https://gitlab.example.com/team/": root / "team"},
+        discovery_max_depth=2,
+    )
     resolver = RepositoryResolver(config)
-    assert resolver.resolve_local_repo("https://gitlab.example.com/team/payment.git") == direct.resolve()
+    assert (
+        resolver.resolve_local_repo("https://gitlab.example.com/team/payment.git")
+        == direct.resolve()
+    )
 
-    nested = _local_repo(root / "nested" / "one" / "two" / "payment", "https://gitlab.example.com/team/payment.git")
-    shallow_config = AgentReviewConfig(repo_roots={"https://gitlab.example.com/team/": root}, discovery_max_depth=2)
-    assert RepositoryResolver(shallow_config).resolve_local_repo("https://gitlab.example.com/team/payment.git") == direct.resolve()
+    nested = _local_repo(
+        root / "nested" / "one" / "two" / "payment",
+        "https://gitlab.example.com/team/payment.git",
+    )
+    shallow_config = AgentReviewConfig(
+        repo_roots={"https://gitlab.example.com/team/": root}, discovery_max_depth=2
+    )
+    assert (
+        RepositoryResolver(shallow_config).resolve_local_repo(
+            "https://gitlab.example.com/team/payment.git"
+        )
+        == direct.resolve()
+    )
     # The deeper repository is deliberately beyond the configured search limit.
     assert nested.exists()
 
     parent = tmp_path / "parent-search"
-    fallback = _local_repo(parent / "team" / "payment", "https://gitlab.example.com/team/payment.git")
+    fallback = _local_repo(
+        parent / "team" / "payment", "https://gitlab.example.com/team/payment.git"
+    )
     missing_prefix = AgentReviewConfig(
         repo_roots={"https://gitlab.example.com/team/": parent / "not-yet-mounted"},
         discovery_max_depth=3,
     )
-    assert RepositoryResolver(missing_prefix).resolve_local_repo("https://gitlab.example.com/team/payment.git") == fallback.resolve()
+    assert (
+        RepositoryResolver(missing_prefix).resolve_local_repo(
+            "https://gitlab.example.com/team/payment.git"
+        )
+        == fallback.resolve()
+    )
 
 
 def test_review_request_prefers_github_head_repo_for_fork():
     data = {
         "action": "synchronize",
-        "repository": {"full_name": "upstream/payment", "clone_url": "https://github.com/upstream/payment.git"},
+        "repository": {
+            "full_name": "upstream/payment",
+            "clone_url": "https://github.com/upstream/payment.git",
+        },
         "pull_request": {
             "html_url": "https://github.com/upstream/payment/pull/4",
-            "head": {"ref": "feature", "sha": "abc123", "repo": {"full_name": "fork/payment", "clone_url": "https://github.com/fork/payment.git"}},
+            "head": {
+                "ref": "feature",
+                "sha": "abc123",
+                "repo": {
+                    "full_name": "fork/payment",
+                    "clone_url": "https://github.com/fork/payment.git",
+                },
+            },
             "base": {"ref": "main"},
         },
     }
@@ -125,19 +172,31 @@ def test_build_prompt_exposes_stacked_autofix_target_for_fork(tmp_path):
         remote_url="https://gitlab.example.com/fork/payment.git",
         target_remote_url="https://gitlab.example.com/upstream/payment.git",
         review_url="https://gitlab.example.com/upstream/payment/-/merge_requests/2",
-        project_path="fork/payment", target_project_path="upstream/payment",
-        source_branch="feature", target_branch="main", revision_hint="hint",
-        target_revision_hint="target-hint", action="update", event_key="prompt-job",
+        project_path="fork/payment",
+        target_project_path="upstream/payment",
+        source_branch="feature",
+        target_branch="main",
+        revision_hint="hint",
+        target_revision_hint="target-hint",
+        action="update",
+        event_key="prompt-job",
     )
     prompt = build_prompt(
-        request, str(tmp_path / "source"), str(tmp_path / "job"),
-        "source-sha", "target-sha", AgentReviewConfig(backend="codex"),
+        request,
+        str(tmp_path / "source"),
+        str(tmp_path / "job"),
+        "source-sha",
+        "target-sha",
+        AgentReviewConfig(backend="codex"),
         skill_path=str(tmp_path / "SKILL.md"),
     )
     assert "- SOURCE_PROJECT_PATH: fork/payment" in prompt
     assert "- TARGET_PROJECT_PATH: upstream/payment" in prompt
     assert "- AUTOFIX_TARGET_PROJECT_PATH: fork/payment" in prompt
-    assert "- AUTOFIX_TARGET_REMOTE_URL: https://gitlab.example.com/fork/payment.git" in prompt
+    assert (
+        "- AUTOFIX_TARGET_REMOTE_URL: https://gitlab.example.com/fork/payment.git"
+        in prompt
+    )
     assert "- AUTOFIX_TARGET_BRANCH: feature" in prompt
     assert "- AUTOFIX_BASE_REVISION: source-sha" in prompt
     assert "- SERVICE_PREPARED_WORKSPACE: true" in prompt
@@ -190,12 +249,17 @@ def test_job_store_reclaims_stale_running_job(tmp_path):
     }
     assert store.claim(**kwargs, lease_seconds=3600)
     with sqlite3.connect(tmp_path / "jobs.db") as conn:
-        conn.execute("UPDATE agent_review_jobs SET updated_at = ? WHERE idempotency_key = ?", ("2000-01-01T00:00:00+00:00", "stale"))
+        conn.execute(
+            "UPDATE agent_review_jobs SET updated_at = ? WHERE idempotency_key = ?",
+            ("2000-01-01T00:00:00+00:00", "stale"),
+        )
     assert store.claim(**kwargs, lease_seconds=3600)
 
 
 def test_cleanup_removes_worktrees_but_not_external_local_repo(tmp_path):
-    source = _local_repo(tmp_path / "source", "https://gitlab.example.com/team/payment.git")
+    source = _local_repo(
+        tmp_path / "source", "https://gitlab.example.com/team/payment.git"
+    )
     job_root = tmp_path / "jobs" / "job-1"
     job_root.mkdir(parents=True)
     child = job_root / "agent-choice"
@@ -214,15 +278,27 @@ def test_cleanup_removes_worktrees_but_not_external_local_repo(tmp_path):
 def test_prepare_clones_latest_branch_and_cleanup_removes_owned_clone(tmp_path):
     seed = _local_repo(tmp_path / "seed", "placeholder")
     bare = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "--bare", str(bare)], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "init", "--bare", str(bare)], check=True, capture_output=True, text=True
+    )
     _git(seed, "remote", "set-url", "origin", bare.as_uri())
     _git(seed, "push", "origin", "main")
     request = AgentReviewRequest(
-        provider="gitlab", remote_url=bare.as_uri(), review_url="https://gitlab.example.com/team/payment/-/merge_requests/1",
-        project_path="team/payment", source_branch="main", target_branch="main", revision_hint="", action="open", event_key="clone-job",
+        provider="gitlab",
+        remote_url=bare.as_uri(),
+        review_url="https://gitlab.example.com/team/payment/-/merge_requests/1",
+        project_path="team/payment",
+        source_branch="main",
+        target_branch="main",
+        revision_hint="",
+        action="open",
+        event_key="clone-job",
     )
     config = AgentReviewConfig(
-        repo_roots={}, clone_parent=tmp_path / "clones", worktree_parent=tmp_path / "worktrees", clone_cleanup="always",
+        repo_roots={},
+        clone_parent=tmp_path / "clones",
+        worktree_parent=tmp_path / "worktrees",
+        clone_cleanup="always",
     )
     manager = WorkspaceManager(config)
     context = manager.prepare(request)
@@ -238,18 +314,29 @@ def test_prepare_clones_latest_branch_and_cleanup_removes_owned_clone(tmp_path):
 def test_prepare_uses_local_repo_as_read_only_seed(tmp_path):
     source = _local_repo(tmp_path / "repos" / "team" / "payment", "placeholder")
     bare = tmp_path / "remote.git"
-    subprocess.run(["git", "init", "--bare", str(bare)], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "init", "--bare", str(bare)], check=True, capture_output=True, text=True
+    )
     _git(source, "remote", "set-url", "origin", bare.as_uri())
     _git(source, "push", "origin", "main")
     before = subprocess.run(
         ["git", "show-ref"], cwd=source, check=True, capture_output=True, text=True
     ).stdout
     request = AgentReviewRequest(
-        provider="gitlab", remote_url=bare.as_uri(), review_url="https://gitlab.example.com/team/payment/-/merge_requests/2",
-        project_path="team/payment", source_branch="main", target_branch="main", revision_hint="", action="open", event_key="local-seed",
+        provider="gitlab",
+        remote_url=bare.as_uri(),
+        review_url="https://gitlab.example.com/team/payment/-/merge_requests/2",
+        project_path="team/payment",
+        source_branch="main",
+        target_branch="main",
+        revision_hint="",
+        action="open",
+        event_key="local-seed",
     )
     config = AgentReviewConfig(
-        repo_roots={bare.as_uri(): source}, clone_parent=tmp_path / "clones", worktree_parent=tmp_path / "worktrees",
+        repo_roots={bare.as_uri(): source},
+        clone_parent=tmp_path / "clones",
+        worktree_parent=tmp_path / "worktrees",
     )
     context = WorkspaceManager(config).prepare(request)
     assert context.clone_path is not None
@@ -265,17 +352,32 @@ def test_prepare_uses_local_repo_as_read_only_seed(tmp_path):
 
 
 def test_prepare_cleans_clone_when_post_clone_setup_fails(tmp_path):
-    config = AgentReviewConfig(clone_parent=tmp_path / "clones", worktree_parent=tmp_path / "worktrees")
+    config = AgentReviewConfig(
+        clone_parent=tmp_path / "clones", worktree_parent=tmp_path / "worktrees"
+    )
     manager = WorkspaceManager(config)
     request = AgentReviewRequest(
-        provider="gitlab", remote_url="https://gitlab.example.com/team/payment.git", review_url="https://gitlab.example.com/team/payment/-/merge_requests/1",
-        project_path="team/payment", source_branch="main", target_branch="main", revision_hint="", action="open", event_key="failed-prepare",
+        provider="gitlab",
+        remote_url="https://gitlab.example.com/team/payment.git",
+        review_url="https://gitlab.example.com/team/payment/-/merge_requests/1",
+        project_path="team/payment",
+        source_branch="main",
+        target_branch="main",
+        revision_hint="",
+        action="open",
+        event_key="failed-prepare",
     )
 
     def fake_clone(_remote, _provider, target):
         target.mkdir()
 
-    with patch.object(manager.resolver, "resolve_local_repo", return_value=None), patch.object(manager, "_run_git_clone", side_effect=fake_clone), patch.object(manager, "_fetch_source_branch", side_effect=RuntimeError("fetch failed")):
+    with (
+        patch.object(manager.resolver, "resolve_local_repo", return_value=None),
+        patch.object(manager, "_run_git_clone", side_effect=fake_clone),
+        patch.object(
+            manager, "_fetch_source_branch", side_effect=RuntimeError("fetch failed")
+        ),
+    ):
         try:
             manager.prepare(request)
         except RuntimeError as exc:
@@ -286,7 +388,9 @@ def test_prepare_cleans_clone_when_post_clone_setup_fails(tmp_path):
 
 
 def test_opencode_backend_passes_job_directory_to_both_requests(tmp_path):
-    config = AgentReviewConfig(opencode_api_url="http://opencode:4096", opencode_agent_name="code-reviewer")
+    config = AgentReviewConfig(
+        opencode_api_url="http://opencode:4096", opencode_agent_name="code-reviewer"
+    )
     created = MagicMock()
     created.raise_for_status.return_value = None
     created.json.return_value = {"id": "session-1"}
@@ -297,14 +401,21 @@ def test_opencode_backend_passes_job_directory_to_both_requests(tmp_path):
     statuses.json.return_value = {"session-1": {"type": "idle"}}
     messages = MagicMock()
     messages.raise_for_status.return_value = None
-    messages.json.return_value = [{
-        "info": {"role": "assistant", "time": {"completed": 1}},
-        "parts": [{"type": "text", "text": "done"}],
-    }]
-    with patch("biz.agent.backends.requests.post", side_effect=[created, accepted]) as post, patch(
-        "biz.agent.backends.requests.get", side_effect=[statuses, messages]
+    messages.json.return_value = [
+        {
+            "info": {"role": "assistant", "time": {"completed": 1}},
+            "parts": [{"type": "text", "text": "done"}],
+        }
+    ]
+    with (
+        patch(
+            "biz.agent.backends.requests.post", side_effect=[created, accepted]
+        ) as post,
+        patch("biz.agent.backends.requests.get", side_effect=[statuses, messages]),
     ):
-        result = OpenCodeServeBackend().run(prompt="review", job_root=tmp_path, source_repo=tmp_path, config=config)
+        result = OpenCodeServeBackend().run(
+            prompt="review", job_root=tmp_path, source_repo=tmp_path, config=config
+        )
     assert result.session_id == "session-1"
     assert post.call_args_list[0].kwargs["params"] == {"directory": str(tmp_path)}
     assert post.call_args_list[1].kwargs["params"] == {"directory": str(tmp_path)}
@@ -312,7 +423,10 @@ def test_opencode_backend_passes_job_directory_to_both_requests(tmp_path):
     assert post.call_args_list[1].kwargs["json"]["agent"] == "code-reviewer"
     assert json.loads(result.output)["parts"][0]["text"] == "done"
     materialized = json.loads((tmp_path / "opencode.json").read_text(encoding="utf-8"))
-    assert str(tmp_path / ".agent-skill" / "SKILL.md") in materialized["agent"]["code-reviewer"]["prompt"]
+    assert (
+        str(tmp_path / ".agent-skill" / "SKILL.md")
+        in materialized["agent"]["code-reviewer"]["prompt"]
+    )
     assert (tmp_path / "prompts" / "docs-searcher.md").exists()
 
 
@@ -328,20 +442,29 @@ def test_opencode_backend_turns_assistant_error_into_execution_error(tmp_path):
     statuses.json.return_value = {"session-1": {"type": "idle"}}
     messages = MagicMock()
     messages.raise_for_status.return_value = None
-    messages.json.return_value = [{
-        "info": {
-            "role": "assistant",
-            "time": {"completed": 1},
-            "error": {"name": "APIError", "data": {"message": "provider unauthorized"}},
-        },
-        "parts": [],
-    }]
-    with patch("biz.agent.backends.requests.post", side_effect=[created, accepted]), patch(
-        "biz.agent.backends.requests.get", side_effect=[statuses, messages]
+    messages.json.return_value = [
+        {
+            "info": {
+                "role": "assistant",
+                "time": {"completed": 1},
+                "error": {
+                    "name": "APIError",
+                    "data": {"message": "provider unauthorized"},
+                },
+            },
+            "parts": [],
+        }
+    ]
+    with (
+        patch("biz.agent.backends.requests.post", side_effect=[created, accepted]),
+        patch("biz.agent.backends.requests.get", side_effect=[statuses, messages]),
     ):
         try:
             OpenCodeServeBackend().run(
-                prompt="review", job_root=tmp_path, source_repo=tmp_path, config=config,
+                prompt="review",
+                job_root=tmp_path,
+                source_repo=tmp_path,
+                config=config,
             )
         except BackendExecutionError as exc:
             assert "provider unauthorized" in str(exc)
@@ -354,7 +477,8 @@ def test_opencode_backend_turns_assistant_error_into_execution_error(tmp_path):
 
 def test_opencode_unlimited_execution_can_be_aborted_on_shutdown(tmp_path):
     config = AgentReviewConfig(
-        opencode_api_url="http://opencode:4096", backend_timeout=-1,
+        opencode_api_url="http://opencode:4096",
+        backend_timeout=-1,
         opencode_session_timeout=1,
     )
     created = MagicMock()
@@ -378,14 +502,20 @@ def test_opencode_unlimited_execution_can_be_aborted_on_shutdown(tmp_path):
     def run_backend():
         try:
             OpenCodeServeBackend().run(
-                prompt="review", job_root=tmp_path, source_repo=tmp_path, config=config,
+                prompt="review",
+                job_root=tmp_path,
+                source_repo=tmp_path,
+                config=config,
             )
         except Exception as exc:
             errors.append(exc)
 
-    with patch("biz.agent.backends.requests.post", side_effect=[created, accepted, aborted]) as post, patch(
-        "biz.agent.backends.requests.get", side_effect=get_control
-    ) as get:
+    with (
+        patch(
+            "biz.agent.backends.requests.post", side_effect=[created, accepted, aborted]
+        ) as post,
+        patch("biz.agent.backends.requests.get", side_effect=get_control) as get,
+    ):
         try:
             thread = threading.Thread(target=run_backend)
             thread.start()
@@ -405,7 +535,8 @@ def test_opencode_unlimited_execution_can_be_aborted_on_shutdown(tmp_path):
 
 def test_opencode_positive_backend_timeout_aborts_session(tmp_path):
     config = AgentReviewConfig(
-        opencode_api_url="http://opencode:4096", backend_timeout=0,
+        opencode_api_url="http://opencode:4096",
+        backend_timeout=0,
         opencode_session_timeout=1,
     )
     created = MagicMock()
@@ -420,7 +551,10 @@ def test_opencode_positive_backend_timeout_aborts_session(tmp_path):
     ) as post:
         try:
             OpenCodeServeBackend().run(
-                prompt="review", job_root=tmp_path, source_repo=tmp_path, config=config,
+                prompt="review",
+                job_root=tmp_path,
+                source_repo=tmp_path,
+                config=config,
             )
         except BackendExecutionError as exc:
             assert exc.timed_out
@@ -432,9 +566,10 @@ def test_opencode_positive_backend_timeout_aborts_session(tmp_path):
 def test_shutdown_force_kills_local_process_groups_after_grace():
     process = MagicMock(pid=991)
     process.poll.return_value = None
-    with patch("biz.agent.backends._ACTIVE_PROCESSES", {process}), patch(
-        "biz.agent.backends.os.killpg"
-    ) as killpg:
+    with (
+        patch("biz.agent.backends._ACTIVE_PROCESSES", {process}),
+        patch("biz.agent.backends.os.killpg") as killpg,
+    ):
         try:
             terminate_active_backends(grace_seconds=0)
         finally:
@@ -450,15 +585,26 @@ def test_opencode_backend_materializes_custom_agent_name(tmp_path):
     OpenCodeServeBackend._materialize_project_config(tmp_path, config)
     materialized = json.loads((tmp_path / "opencode.json").read_text(encoding="utf-8"))
     assert "custom-reviewer" in materialized["agent"]
-    assert str(tmp_path / ".agent-skill" / "SKILL.md") in materialized["agent"]["custom-reviewer"]["prompt"]
+    assert (
+        str(tmp_path / ".agent-skill" / "SKILL.md")
+        in materialized["agent"]["custom-reviewer"]["prompt"]
+    )
 
 
 def test_codex_backend_uses_workspace_write_without_external_source_access(tmp_path):
     config = AgentReviewConfig(codex_bin="codex")
     process = MagicMock(pid=123, returncode=0)
     process.communicate.return_value = ("ok", "")
-    with patch("biz.agent.backends.shutil.which", return_value="/bin/codex"), patch("biz.agent.backends.subprocess.Popen", return_value=process) as run:
-        result = CodexCliBackend().run(prompt="review", job_root=tmp_path, source_repo=tmp_path / "source", config=config)
+    with (
+        patch("biz.agent.backends.shutil.which", return_value="/bin/codex"),
+        patch("biz.agent.backends.subprocess.Popen", return_value=process) as run,
+    ):
+        result = CodexCliBackend().run(
+            prompt="review",
+            job_root=tmp_path,
+            source_repo=tmp_path / "source",
+            config=config,
+        )
     args = run.call_args.args[0]
     assert args[:4] == ["/bin/codex", "exec", "--sandbox", "workspace-write"]
     assert "--skip-git-repo-check" in args
@@ -469,13 +615,23 @@ def test_codex_backend_uses_workspace_write_without_external_source_access(tmp_p
     assert result.output == "ok"
 
 
-def test_claude_backend_is_unattended_and_preserves_standard_api_key(tmp_path, monkeypatch):
+def test_claude_backend_is_unattended_and_preserves_standard_api_key(
+    tmp_path, monkeypatch
+):
     config = AgentReviewConfig(claude_bin="claude")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     process = MagicMock(pid=124, returncode=0)
     process.communicate.return_value = ("ok", "")
-    with patch("biz.agent.backends.shutil.which", return_value="/bin/claude"), patch("biz.agent.backends.subprocess.Popen", return_value=process) as run:
-        ClaudeCliBackend().run(prompt="review", job_root=tmp_path, source_repo=tmp_path / "source", config=config)
+    with (
+        patch("biz.agent.backends.shutil.which", return_value="/bin/claude"),
+        patch("biz.agent.backends.subprocess.Popen", return_value=process) as run,
+    ):
+        ClaudeCliBackend().run(
+            prompt="review",
+            job_root=tmp_path,
+            source_repo=tmp_path / "source",
+            config=config,
+        )
     args = run.call_args.args[0]
     assert args[:3] == ["/bin/claude", "-p", "--permission-mode"]
     assert "bypassPermissions" in args
@@ -491,10 +647,24 @@ def test_pi_backend_disables_project_resources_and_loads_only_canonical_skill(tm
     process = MagicMock(pid=125, returncode=0)
     process.communicate.return_value = ("ok", "")
     config = AgentReviewConfig(pi_bin="pi")
-    with patch("biz.agent.backends.shutil.which", return_value="/bin/pi"), patch("biz.agent.backends.subprocess.Popen", return_value=process) as run:
-        PiCliBackend().run(prompt="review", job_root=tmp_path, source_repo=tmp_path / "source", config=config)
+    with (
+        patch("biz.agent.backends.shutil.which", return_value="/bin/pi"),
+        patch("biz.agent.backends.subprocess.Popen", return_value=process) as run,
+    ):
+        PiCliBackend().run(
+            prompt="review",
+            job_root=tmp_path,
+            source_repo=tmp_path / "source",
+            config=config,
+        )
     args = run.call_args.args[0]
-    for flag in ("--no-session", "--no-approve", "--no-extensions", "--no-prompt-templates", "--no-context-files"):
+    for flag in (
+        "--no-session",
+        "--no-approve",
+        "--no-extensions",
+        "--no-prompt-templates",
+        "--no-context-files",
+    ):
         assert flag in args
     assert args[args.index("--skill") + 1] == str(skill)
     assert args[args.index("--tools") + 1] == "read,bash,edit,write,grep,find,ls"
@@ -511,4 +681,6 @@ def test_config_accepts_full_project_url_mapping(tmp_path, monkeypatch):
     config = load_agent_review_config()
     assert config.backend == "codex"
     assert config.discovery_max_depth == 5
-    assert config.repo_roots["https://gitlab.example.com/team/payment.git"] == Path("/srv/payment")
+    assert config.repo_roots["https://gitlab.example.com/team/payment.git"] == Path(
+        "/srv/payment"
+    )

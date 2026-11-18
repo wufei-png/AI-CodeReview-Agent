@@ -18,11 +18,17 @@ from biz.agent.workspace import WorkspaceContext, WorkspaceManager
 
 def _git(cwd: Path, *args: str) -> str:
     return subprocess.run(
-        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True,
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
 
 
-def test_config_defaults_to_unlimited_backend_and_optional_result_limit(tmp_path, monkeypatch):
+def test_config_defaults_to_unlimited_backend_and_optional_result_limit(
+    tmp_path, monkeypatch
+):
     config_file = tmp_path / "agent.yml"
     config_file.write_text("backend: pi\n", encoding="utf-8")
     monkeypatch.setenv("AGENT_REVIEW_CONFIG", str(config_file))
@@ -40,7 +46,11 @@ def test_event_key_ignores_action_but_includes_target_revision():
         "repository": {"full_name": "o/r", "clone_url": "https://github.com/o/r.git"},
         "pull_request": {
             "html_url": "https://github.com/o/r/pull/1",
-            "head": {"ref": "feature", "sha": "source", "repo": {"full_name": "o/r", "clone_url": "https://github.com/o/r.git"}},
+            "head": {
+                "ref": "feature",
+                "sha": "source",
+                "repo": {"full_name": "o/r", "clone_url": "https://github.com/o/r.git"},
+            },
             "base": {"ref": "main", "sha": "target-a"},
         },
     }
@@ -71,7 +81,12 @@ def test_queue_supersedes_queued_revision_and_serializes_review_url(tmp_path):
     store.finish("new", status="failed")
     assert store.claim_next()["idempotency_key"] == "latest"
     with sqlite3.connect(tmp_path / "jobs.db") as conn:
-        assert conn.execute("SELECT status FROM agent_review_jobs WHERE idempotency_key='old'").fetchone()[0] == "failed"
+        assert (
+            conn.execute(
+                "SELECT status FROM agent_review_jobs WHERE idempotency_key='old'"
+            ).fetchone()[0]
+            == "failed"
+        )
 
 
 def test_confirmed_receipt_gates_previous_delivery_state(tmp_path):
@@ -94,9 +109,17 @@ def test_confirmed_receipt_gates_previous_delivery_state(tmp_path):
     store.claim_next()
     assert store.set_revisions("two", source_revision="S2", target_revision="T1")
     store.mark_agent_started("two")
-    store.finish("two", status="completed", delivery_status="confirmed", note_id="42", note_url="https://note")
+    store.finish(
+        "two",
+        status="completed",
+        delivery_status="confirmed",
+        note_id="42",
+        note_url="https://note",
+    )
     assert store.previous_delivery(kwargs["review_url"]) == {
-        "source_revision": "S2", "note_id": "42", "note_url": "https://note",
+        "source_revision": "S2",
+        "note_id": "42",
+        "note_url": "https://note",
     }
 
 
@@ -133,25 +156,39 @@ def test_resolved_revision_deduplication_only_uses_latest_confirmed_snapshot(tmp
 
     assert store.enqueue(key="same-latest", **common)
     assert store.claim_next()["idempotency_key"] == "same-latest"
-    assert not store.set_revisions("same-latest", source_revision="S2", target_revision="T1")
+    assert not store.set_revisions(
+        "same-latest", source_revision="S2", target_revision="T1"
+    )
 
 
 def test_failed_backend_still_confirms_receipt_and_records_cleanup_error(tmp_path):
     request = AgentReviewRequest(
-        provider="github", remote_url="https://github.com/o/r.git",
+        provider="github",
+        remote_url="https://github.com/o/r.git",
         target_remote_url="https://github.com/o/r.git",
-        review_url="https://github.com/o/r/pull/1", project_path="o/r",
-        target_project_path="o/r", source_branch="feature", target_branch="main",
-        revision_hint="S1", target_revision_hint="T1", action="update", event_key="job-1",
+        review_url="https://github.com/o/r/pull/1",
+        project_path="o/r",
+        target_project_path="o/r",
+        source_branch="feature",
+        target_branch="main",
+        revision_hint="S1",
+        target_revision_hint="T1",
+        action="update",
+        event_key="job-1",
     )
     config = AgentReviewConfig(
-        backend="codex", job_db=tmp_path / "jobs.db",
-        clone_parent=tmp_path / "clones", worktree_parent=tmp_path / "jobs",
+        backend="codex",
+        job_db=tmp_path / "jobs.db",
+        clone_parent=tmp_path / "clones",
+        worktree_parent=tmp_path / "jobs",
     )
     store = AgentJobStore(config.job_db)
     assert store.enqueue(
-        key=request.event_key, provider=request.provider, review_url=request.review_url,
-        backend=config.backend, source_branch=request.source_branch,
+        key=request.event_key,
+        provider=request.provider,
+        review_url=request.review_url,
+        backend=config.backend,
+        source_branch=request.source_branch,
         target_branch=request.target_branch,
         request_json=json.dumps(asdict(request)),
     )
@@ -161,25 +198,38 @@ def test_failed_backend_still_confirms_receipt_and_records_cleanup_error(tmp_pat
     source_repo = job_root / ".agent-source"
     source_repo.mkdir(parents=True)
     context = WorkspaceContext(
-        source_repo=source_repo, job_root=job_root, clone_path=None,
-        source_revision="S1", target_revision="T1", source_branch="feature",
+        source_repo=source_repo,
+        job_root=job_root,
+        clone_path=None,
+        source_revision="S1",
+        target_revision="T1",
+        source_branch="feature",
     )
     backend = MagicMock()
 
     def fail_after_delivery(**_kwargs):
         (job_root / ".agent-delivery-receipt.json").write_text(
-            json.dumps({"id": 9, "html_url": "https://github.com/o/r/pull/1#issuecomment-9",
-                        "body": f"<!-- {request.review_marker} -->\nSource Revision: S1\nTarget Revision: T1"}),
+            json.dumps(
+                {
+                    "id": 9,
+                    "html_url": "https://github.com/o/r/pull/1#issuecomment-9",
+                    "body": f"<!-- {request.review_marker} -->\nSource Revision: S1\nTarget Revision: T1",
+                }
+            ),
             encoding="utf-8",
         )
         raise BackendExecutionError("backend failed", output="partial", stderr="boom")
 
     backend.run.side_effect = fail_after_delivery
-    with patch("biz.agent.service._preflight"), patch(
-        "biz.agent.service.WorkspaceManager.prepare", return_value=context
-    ), patch(
-        "biz.agent.service.WorkspaceManager.cleanup", side_effect=OSError("cleanup denied")
-    ), patch("biz.agent.service.create_backend", return_value=backend):
+    with (
+        patch("biz.agent.service._preflight"),
+        patch("biz.agent.service.WorkspaceManager.prepare", return_value=context),
+        patch(
+            "biz.agent.service.WorkspaceManager.cleanup",
+            side_effect=OSError("cleanup denied"),
+        ),
+        patch("biz.agent.service.create_backend", return_value=backend),
+    ):
         execute_claimed_job(store, row, config)
 
     with sqlite3.connect(config.job_db) as conn:
@@ -193,11 +243,17 @@ def test_failed_backend_still_confirms_receipt_and_records_cleanup_error(tmp_pat
 
 def test_opencode_preflight_does_not_require_worker_local_platform_cli(tmp_path):
     request = AgentReviewRequest(
-        provider="gitea", remote_url="https://gitea.example/o/r.git",
+        provider="gitea",
+        remote_url="https://gitea.example/o/r.git",
         target_remote_url="https://gitea.example/o/r.git",
-        review_url="https://gitea.example/o/r/pulls/1", project_path="o/r",
-        target_project_path="o/r", source_branch="feature", target_branch="main",
-        revision_hint="S1", action="update", event_key="job-1",
+        review_url="https://gitea.example/o/r/pulls/1",
+        project_path="o/r",
+        target_project_path="o/r",
+        source_branch="feature",
+        target_branch="main",
+        revision_hint="S1",
+        action="update",
+        event_key="job-1",
     )
     with patch("biz.agent.service.shutil.which", return_value=None):
         _preflight(AgentReviewConfig(backend="opencode"), request)
@@ -210,18 +266,26 @@ def test_cleanup_raises_aggregated_job_and_clone_errors(tmp_path):
     source_repo.mkdir(parents=True)
     clone_path.mkdir(parents=True)
     config = AgentReviewConfig(
-        worktree_parent=tmp_path / "jobs", clone_parent=tmp_path / "clones",
+        worktree_parent=tmp_path / "jobs",
+        clone_parent=tmp_path / "clones",
         clone_cleanup="always",
     )
     context = WorkspaceContext(
-        source_repo=source_repo, job_root=job_root, clone_path=clone_path,
-        source_revision="S1", target_revision="T1", source_branch="feature",
+        source_repo=source_repo,
+        job_root=job_root,
+        clone_path=clone_path,
+        source_revision="S1",
+        target_revision="T1",
+        source_branch="feature",
         source_repo_owned=True,
     )
     manager = WorkspaceManager(config)
-    with patch.object(manager, "_remove_worktrees"), patch(
-        "biz.agent.workspace.shutil.rmtree",
-        side_effect=[OSError("job denied"), OSError("clone denied")],
+    with (
+        patch.object(manager, "_remove_worktrees"),
+        patch(
+            "biz.agent.workspace.shutil.rmtree",
+            side_effect=[OSError("job denied"), OSError("clone denied")],
+        ),
     ):
         try:
             manager.cleanup(context, success=True)
@@ -238,21 +302,46 @@ def test_result_truncation_keeps_head_and_tail_and_receipt_stays_native(tmp_path
     assert truncated and clipped.startswith("HEAD") and clipped.endswith("TAIL")
     assert "truncated" in clipped
     receipt = tmp_path / "receipt.json"
-    request = AgentReviewRequest('github', 'https://github.com/o/r.git', 'https://github.com/o/r/pull/1', 'o/r', 'f', 'main', '', 'opened', 'job')
-    receipt.write_text(json.dumps({"id": 7, "html_url": request.review_url + "#issuecomment-7",
-                                   "body": f"<!-- {request.review_marker} --> S1 T1", "provider_extra": True}), encoding="utf-8")
+    request = AgentReviewRequest(
+        "github",
+        "https://github.com/o/r.git",
+        "https://github.com/o/r/pull/1",
+        "o/r",
+        "f",
+        "main",
+        "",
+        "opened",
+        "job",
+    )
+    receipt.write_text(
+        json.dumps(
+            {
+                "id": 7,
+                "html_url": request.review_url + "#issuecomment-7",
+                "body": f"<!-- {request.review_marker} --> S1 T1",
+                "provider_extra": True,
+            }
+        ),
+        encoding="utf-8",
+    )
     result = read_delivery_receipt(receipt, request, "S1", "T1")
     assert result.error is None
     assert json.loads(result.raw)["provider_extra"] is True
-    assert (result.note_id, result.note_url) == ("7", request.review_url + "#issuecomment-7")
-
+    assert (result.note_id, result.note_url) == (
+        "7",
+        request.review_url + "#issuecomment-7",
+    )
 
 
 def test_fork_fetches_latest_target_from_upstream(tmp_path):
     upstream = tmp_path / "upstream.git"
     fork = tmp_path / "fork.git"
-    subprocess.run(["git", "init", "--bare", str(upstream)], check=True, capture_output=True)
-    subprocess.run(["git", "init", "--bare", str(fork)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "--bare", str(upstream)], check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "init", "--bare", str(fork)], check=True, capture_output=True
+    )
     work = tmp_path / "work"
     work.mkdir()
     _git(work, "init", "-b", "main")
@@ -280,19 +369,36 @@ def test_fork_fetches_latest_target_from_upstream(tmp_path):
     _git(work, "push", "upstream", "main")
 
     config = AgentReviewConfig(
-        clone_parent=tmp_path / "clones", worktree_parent=tmp_path / "jobs", clone_cleanup="always",
+        clone_parent=tmp_path / "clones",
+        worktree_parent=tmp_path / "jobs",
+        clone_cleanup="always",
     )
     request = AgentReviewRequest(
-        provider="gitlab", remote_url=fork.as_uri(), target_remote_url=upstream.as_uri(),
+        provider="gitlab",
+        remote_url=fork.as_uri(),
+        target_remote_url=upstream.as_uri(),
         review_url="https://gitlab.example/upstream/r/-/merge_requests/1",
-        project_path="fork/r", target_project_path="upstream/r", source_branch="feature",
-        target_branch="main", revision_hint=source, action="update", event_key="fork-job",
+        project_path="fork/r",
+        target_project_path="upstream/r",
+        source_branch="feature",
+        target_branch="main",
+        revision_hint=source,
+        action="update",
+        event_key="fork-job",
     )
     manager = WorkspaceManager(config)
     context = manager.prepare(request)
     try:
         assert context.source_revision == source
         assert context.target_revision == target
-        assert _git(context.source_repo, "merge-base", context.target_revision, context.source_revision) == base
+        assert (
+            _git(
+                context.source_repo,
+                "merge-base",
+                context.target_revision,
+                context.source_revision,
+            )
+            == base
+        )
     finally:
         manager.cleanup(context, success=True)

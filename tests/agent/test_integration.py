@@ -6,6 +6,7 @@ with a mock LLM client. They exercise the full pipeline:
 
 Test 2 also exercises the soft-degrade path when AgentRunner raises.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -29,12 +30,16 @@ def tiny_remote(tmp_path: Path) -> Path:
     work = tmp_path / "work"
     work.mkdir()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=work, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=work, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=work, check=True
+    )
     subprocess.run(["git", "config", "user.name", "T"], cwd=work, check=True)
     (work / "f.txt").write_text("v1\n")
     subprocess.run(["git", "add", "-A"], cwd=work, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "v1"], cwd=work, check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(remote)], cwd=work, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote)], cwd=work, check=True
+    )
     subprocess.run(["git", "push", "-q", "origin", "main"], cwd=work, check=True)
     return remote
 
@@ -66,7 +71,9 @@ class TestEndToEndAgentic:
         assert (cache / "int_proj").exists()
         assert mock_client.chat_with_tools.called
 
-    def test_agentic_reviewer_degrades_when_runner_raises(self, tmp_path, tiny_remote, monkeypatch):
+    def test_agentic_reviewer_degrades_when_runner_raises(
+        self, tmp_path, tiny_remote, monkeypatch
+    ):
         # CodeReviewer's __init__ calls Factory().getClient(); use ollama so it
         # doesn't require API keys. The patched review_and_strip_code short-
         # circuits any real network call anyway.
@@ -81,10 +88,12 @@ class TestEndToEndAgentic:
         }
         adapter = LLMAdapter(mock_client, use_native=True)
 
-        with patch("biz.agent.agentic_reviewer.AgentRunner") as MockRunner, \
-                patch.object(
-                    CodeReviewer, "review_and_strip_code", return_value="DEGRADED 总分:50分"
-                ):
+        with (
+            patch("biz.agent.agentic_reviewer.AgentRunner") as MockRunner,
+            patch.object(
+                CodeReviewer, "review_and_strip_code", return_value="DEGRADED 总分:50分"
+            ),
+        ):
             mock_instance = MagicMock()
             mock_instance.run.side_effect = TokenBudgetExceeded("over")
             MockRunner.return_value = mock_instance

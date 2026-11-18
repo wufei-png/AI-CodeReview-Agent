@@ -12,6 +12,7 @@ class DirectoryReviewFunc(LLMReviewFunc):
     """
     对项目的目录结构进行审查的功能。
     """
+
     SUPPORTED_LANGUAGES = ["python", "java", "php", "vue"]
     SYSTEM_PROMPT = """
         你是一位资深的软件架构师，本次任务是对一个代码库进行审查，具体要求如下：
@@ -69,9 +70,13 @@ class DirectoryReviewFunc(LLMReviewFunc):
         while True:
             choice = input(f"请输入数字 (1-{len(self.SUPPORTED_LANGUAGES)}): ").strip()
             if self.validate_language_choice(choice):
-                self.language = self.SUPPORTED_LANGUAGES[int(choice) - 1]  # 获取对应的语言
+                self.language = self.SUPPORTED_LANGUAGES[
+                    int(choice) - 1
+                ]  # 获取对应的语言
                 break
-            print(f"❌ 无效的选择，请输入 1 到 {len(self.SUPPORTED_LANGUAGES)} 之间的数字")
+            print(
+                f"❌ 无效的选择，请输入 1 到 {len(self.SUPPORTED_LANGUAGES)} 之间的数字"
+            )
 
         # 获取项目目录
         while True:
@@ -80,8 +85,12 @@ class DirectoryReviewFunc(LLMReviewFunc):
                 break
             print("❌ 目录不存在，请输入有效路径")
 
-        self.max_depth = self.get_user_input("请输入目录树的最大深度", default=3, input_type=int)
-        self.only_dirs = self.get_user_input("是否仅获取目录？(y/n)", default="y").lower() in ["y", "yes"]
+        self.max_depth = self.get_user_input(
+            "请输入目录树的最大深度", default=3, input_type=int
+        )
+        self.only_dirs = self.get_user_input(
+            "是否仅获取目录？(y/n)", default="y"
+        ).lower() in ["y", "yes"]
 
     def load_gitignore_patterns(self):
         """加载 .gitignore 规则"""
@@ -112,7 +121,10 @@ class DirectoryReviewFunc(LLMReviewFunc):
         ignore_spec = self.load_gitignore_patterns()
 
         directory_structure = get_directory_tree(
-            self.directory, ignore_spec, max_depth=self.max_depth, only_dirs=self.only_dirs
+            self.directory,
+            ignore_spec,
+            max_depth=self.max_depth,
+            only_dirs=self.only_dirs,
         )
         print("目录结构:\n", directory_structure)
 

@@ -1,4 +1,5 @@
 """Durable webhook enqueueing and execution for external Agent reviews."""
+
 from __future__ import annotations
 
 import json
@@ -8,10 +9,20 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from biz.agent.backends import BackendExecutionError, create_backend
-from biz.agent.config import AgentReviewConfig, is_agent_review_enabled, load_agent_review_config, remote_allowed
+from biz.agent.config import (
+    AgentReviewConfig,
+    is_agent_review_enabled,
+    load_agent_review_config,
+    remote_allowed,
+)
 from biz.agent.delivery_receipt import read_delivery_receipt
 from biz.agent.job_store import AgentJobStore
-from biz.agent.review_request import AgentReviewRequest, build_prompt, from_webhook, is_reviewable_action
+from biz.agent.review_request import (
+    AgentReviewRequest,
+    build_prompt,
+    from_webhook,
+    is_reviewable_action,
+)
 from biz.agent.workspace import WorkspaceManager, redact_credentials
 from biz.utils.log import logger
 
@@ -67,11 +78,17 @@ def enqueue_agent_review(provider: str, data: dict, *, gitlab_url: str = "") -> 
     config = load_agent_review_config()
     urls = (request.remote_url, request.target_remote_url, request.review_url)
     if any(url and not remote_allowed(config, url) for url in urls):
-        logger.error("[Agent Review] request host is not allowlisted: %s", request.review_url)
+        logger.error(
+            "[Agent Review] request host is not allowlisted: %s", request.review_url
+        )
         return False
     return AgentJobStore(config.job_db).enqueue(
-        key=request.event_key, provider=request.provider, review_url=request.review_url,
-        backend=config.backend, source_branch=request.source_branch, target_branch=request.target_branch,
+        key=request.event_key,
+        provider=request.provider,
+        review_url=request.review_url,
+        backend=config.backend,
+        source_branch=request.source_branch,
+        target_branch=request.target_branch,
         request_json=json.dumps(asdict(request), ensure_ascii=False, sort_keys=True),
     )
 
@@ -89,11 +106,15 @@ def reap_agent_review_workspaces() -> None:
     manager = WorkspaceManager(config)
     with _ACTIVE_JOB_LOCK:
         active_keys = tuple(_ACTIVE_JOBS)
-    for orphan in store.reap_stale(lease_seconds=config.job_lease_seconds, exclude_keys=active_keys):
+    for orphan in store.reap_stale(
+        lease_seconds=config.job_lease_seconds, exclude_keys=active_keys
+    ):
         manager.reclaim_orphan(**orphan)
 
 
-def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: AgentReviewConfig) -> None:
+def execute_claimed_job(
+    store: AgentJobStore, row: dict[str, object], config: AgentReviewConfig
+) -> None:
     key = str(row["idempotency_key"])
     request = AgentReviewRequest(**json.loads(str(row["request_json"])))
     job_config = replace(config, backend=str(row["backend"]))
@@ -128,9 +149,13 @@ def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: Ag
     heartbeat_thread = threading.Thread(target=heartbeat, daemon=True)
     heartbeat_thread.start()
 
-    def record_workspace(job_root: Path, clone_path: Path | None, source_repo: Path | None) -> None:
+    def record_workspace(
+        job_root: Path, clone_path: Path | None, source_repo: Path | None
+    ) -> None:
         if not store.set_workspace(
-            key, job_root=str(job_root), clone_path=str(clone_path) if clone_path else None,
+            key,
+            job_root=str(job_root),
+            clone_path=str(clone_path) if clone_path else None,
             source_repo=str(source_repo) if source_repo else None,
         ):
             raise RuntimeError("agent review lease lost during workspace preparation")
@@ -140,9 +165,12 @@ def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: Ag
         context = manager.prepare(request, on_workspace_allocated=record_workspace)
         previous = store.previous_delivery(request.review_url, exclude_key=key)
         if not store.set_revisions(
-            key, source_revision=context.source_revision, target_revision=context.target_revision,
+            key,
+            source_revision=context.source_revision,
+            target_revision=context.target_revision,
             previous_source_revision=previous.get("source_revision", ""),
-            previous_note_id=previous.get("note_id", ""), previous_note_url=previous.get("note_url", ""),
+            previous_note_id=previous.get("note_id", ""),
+            previous_note_url=previous.get("note_url", ""),
         ):
             if not store.is_owner(key) or cancel.is_set():
                 raise RuntimeError("agent review lease lost during revision check")
@@ -152,8 +180,12 @@ def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: Ag
             note_url = previous.get("note_url") or None
             return
         prompt = build_prompt(
-            request, str(context.source_repo), str(context.job_root),
-            context.source_revision, context.target_revision, job_config,
+            request,
+            str(context.source_repo),
+            str(context.job_root),
+            context.source_revision,
+            context.target_revision,
+            job_config,
             skill_path=str(context.skill_path) if context.skill_path else None,
             worktree_path=str(context.worktree_path) if context.worktree_path else None,
             previous_reviewed_source_revision=previous.get("source_revision", ""),
@@ -166,7 +198,12 @@ def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: Ag
         agent_started = True
         delivery_status = "unconfirmed"
         result = create_backend(job_config).run(
-            prompt=prompt, job_root=context.job_root, source_repo=context.source_repo, config=job_config, cancel=cancel, worktree_path=context.worktree_path,
+            prompt=prompt,
+            job_root=context.job_root,
+            source_repo=context.source_repo,
+            config=job_config,
+            cancel=cancel,
+            worktree_path=context.worktree_path,
         )
         output = result.output
         backend_succeeded = True
@@ -178,15 +215,21 @@ def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: Ag
         status = "timed_out" if exc.timed_out else "failed"
     except Exception as exc:
         error = redact_credentials(str(exc))[:2000]
-        if not agent_started and not cancel.is_set() and not isinstance(exc, NonRetryableConfigurationError):
+        if (
+            not agent_started
+            and not cancel.is_set()
+            and not isinstance(exc, NonRetryableConfigurationError)
+        ):
             if store.retry_before_agent(key, error=error):
                 return
         status = "failed"
     finally:
         if context is not None and agent_started:
             receipt = read_delivery_receipt(
-                context.job_root / ".agent-delivery-receipt.json", request,
-                context.source_revision, context.target_revision,
+                context.job_root / ".agent-delivery-receipt.json",
+                request,
+                context.source_revision,
+                context.target_revision,
             )
             receipt_raw, delivery_error = receipt.raw, receipt.error
             if receipt.error is None:
@@ -200,17 +243,29 @@ def execute_claimed_job(store: AgentJobStore, row: dict[str, object], config: Ag
             except Exception as exc:
                 cleanup_error = redact_credentials(str(exc))[:2000]
         try:
-            result_text, truncated = _truncate_result(output, job_config.agent_result_max_bytes)
+            result_text, truncated = _truncate_result(
+                output, job_config.agent_result_max_bytes
+            )
             if store.is_owner(key):
                 store.finish(
-                    key, status=status, error=error, agent_result=result_text,
-                    result_truncated=truncated, cleanup_error=cleanup_error,
-                    delivery_status=delivery_status, delivery_receipt=receipt_raw, delivery_error=delivery_error,
-                    note_id=note_id, note_url=note_url,
+                    key,
+                    status=status,
+                    error=error,
+                    agent_result=result_text,
+                    result_truncated=truncated,
+                    cleanup_error=cleanup_error,
+                    delivery_status=delivery_status,
+                    delivery_receipt=receipt_raw,
+                    delivery_error=delivery_error,
+                    note_id=note_id,
+                    note_url=note_url,
                 )
             logger.info(
                 "[Agent Review] finished status=%s delivery=%s backend=%s review=%s",
-                status, delivery_status, job_config.backend, request.review_url,
+                status,
+                delivery_status,
+                job_config.backend,
+                request.review_url,
             )
         finally:
             heartbeat_stop.set()

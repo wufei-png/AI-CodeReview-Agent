@@ -1,4 +1,5 @@
 """run_command tool: sandboxed shell execution within the repo."""
+
 from __future__ import annotations
 
 import re
@@ -11,26 +12,71 @@ from biz.agent.tool import Tool, ToolResult
 
 # Default allowlist (first token of cmd must be in this set, or start with these).
 DEFAULT_ALLOWLIST: list[str] = [
-    "ls", "cat", "head", "tail", "find", "rg", "grep", "wc",
-    "tree", "file", "stat", "diff",
-    "git",       # further restricted to safe subcommands below
-    "echo", "pwd", "true", "false",
+    "ls",
+    "cat",
+    "head",
+    "tail",
+    "find",
+    "rg",
+    "grep",
+    "wc",
+    "tree",
+    "file",
+    "stat",
+    "diff",
+    "git",  # further restricted to safe subcommands below
+    "echo",
+    "pwd",
+    "true",
+    "false",
 ]
 
 # Safe git subcommands (matched as: cmd starts with `git <subcommand>`).
 SAFE_GIT_SUBCOMMANDS = {
-    "log", "show", "diff", "blame", "ls-files", "ls-tree", "status",
+    "log",
+    "show",
+    "diff",
+    "blame",
+    "ls-files",
+    "ls-tree",
+    "status",
 }
 
 # Default blocklist (takes precedence over allowlist).
 DEFAULT_BLOCKLIST: list[str] = [
-    "rm", "mv", "cp", "chmod", "chown", "sudo",
-    "curl", "wget", "ssh", "scp", "rsync",
-    "dd", "mkfs", "mount", "umount",
-    "kubectl", "docker", "podman",
-    "npm", "yarn", "pnpm", "pip", "pip3", "easy_install",
-    "bash", "sh", "zsh", "fish",   # no nested shells
-    "python", "python3", "ruby", "perl", "node",  # code execution paths
+    "rm",
+    "mv",
+    "cp",
+    "chmod",
+    "chown",
+    "sudo",
+    "curl",
+    "wget",
+    "ssh",
+    "scp",
+    "rsync",
+    "dd",
+    "mkfs",
+    "mount",
+    "umount",
+    "kubectl",
+    "docker",
+    "podman",
+    "npm",
+    "yarn",
+    "pnpm",
+    "pip",
+    "pip3",
+    "easy_install",
+    "bash",
+    "sh",
+    "zsh",
+    "fish",  # no nested shells
+    "python",
+    "python3",
+    "ruby",
+    "perl",
+    "node",  # code execution paths
 ]
 
 # Regex patterns that flag path traversal in commands.
@@ -101,7 +147,11 @@ class RunCommandTool(Tool):
         for token in shlex.split(cmd, posix=True):
             # Tokens that look like paths.
             if "/" in token or token.startswith("."):
-                p = (self.repo_root / token).resolve(strict=False) if not token.startswith("/") else Path(token)
+                p = (
+                    (self.repo_root / token).resolve(strict=False)
+                    if not token.startswith("/")
+                    else Path(token)
+                )
                 if is_sensitive_path(p):
                     return ToolResult(False, "", f"sensitive path: {token}")
 
@@ -124,7 +174,9 @@ class RunCommandTool(Tool):
         # Git subcommand allowlist.
         if head == "git":
             if len(tokens) < 2 or tokens[1] not in SAFE_GIT_SUBCOMMANDS:
-                return ToolResult(False, "", f"git subcommand not allowed: {tokens[1:]!r}")
+                return ToolResult(
+                    False, "", f"git subcommand not allowed: {tokens[1:]!r}"
+                )
 
         # ---- execute ----
         actual_timeout = int(timeout) if timeout else self.timeout

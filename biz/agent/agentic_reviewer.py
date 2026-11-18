@@ -1,4 +1,5 @@
 """Top-level entry point for agentic review, used by worker.py."""
+
 from __future__ import annotations
 
 import json
@@ -116,6 +117,7 @@ class AgenticReviewer:
             DEFAULT_ALLOWLIST,
             DEFAULT_BLOCKLIST,
         )
+
         allow = _parse_csv_env("AGENT_SHELL_ALLOWLIST", DEFAULT_ALLOWLIST)
         block = _parse_csv_env("AGENT_SHELL_BLOCKLIST", DEFAULT_BLOCKLIST)
         register_default_tools(registry, repo_root, allowlist=allow, blocklist=block)
@@ -126,10 +128,14 @@ class AgenticReviewer:
         # 1. Sync repo locally.
         try:
             syncer = LocalRepoSyncer(cache_root=self.cache_root)
-            repo_root = syncer.sync_to(url=self.repo_url, key=self.repo_key, ref=self.ref)
+            repo_root = syncer.sync_to(
+                url=self.repo_url, key=self.repo_key, ref=self.ref
+            )
         except Exception as e:
             logger.error("agentic repo sync failed, degrading: %s", e)
-            notifier.send_notification(content=f"[agentic] repo sync failed: {e}; falling back to diff_only")
+            notifier.send_notification(
+                content=f"[agentic] repo sync failed: {e}; falling back to diff_only"
+            )
             return CodeReviewer().review_and_strip_code(diffs_text, commits_text)
 
         # 2. Build adapter, registry, runner.
@@ -143,13 +149,19 @@ class AgenticReviewer:
         )
 
         # 3. Build initial messages from prompt template.
-        prompts = load_prompt("agentic_code_review_prompt", style=os.getenv("REVIEW_STYLE", "professional"))
+        prompts = load_prompt(
+            "agentic_code_review_prompt",
+            style=os.getenv("REVIEW_STYLE", "professional"),
+        )
         user_content = prompts["user_message"]["content"].format(
             diffs_text=diffs_text,
             commits_text=commits_text,
             repo_root=str(repo_root),
         )
-        messages = [prompts["system_message"], {"role": "user", "content": user_content}]
+        messages = [
+            prompts["system_message"],
+            {"role": "user", "content": user_content},
+        ]
 
         # 4. Run the agent loop with soft-degrade; collect metadata for logging.
         run_meta: dict[str, Any] = {}
@@ -159,7 +171,9 @@ class AgenticReviewer:
             result = runner.run(messages, out=run_meta)
         except Exception as e:
             logger.error("agentic run failed, degrading to diff_only: %s", e)
-            notifier.send_notification(content=f"[agentic] run failed: {e}; falling back to diff_only")
+            notifier.send_notification(
+                content=f"[agentic] run failed: {e}; falling back to diff_only"
+            )
             degraded = True
             result = CodeReviewer().review_and_strip_code(diffs_text, commits_text)
 

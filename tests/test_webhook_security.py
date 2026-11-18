@@ -30,9 +30,15 @@ def test_gitlab_standard_webhook_signature(monkeypatch):
     message_id = "msg-1"
     timestamp = str(int(time.time()))
     message = f"{message_id}.{timestamp}.".encode() + body
-    digest = base64.b64encode(hmac.new(raw_key, message, hashlib.sha256).digest()).decode()
+    digest = base64.b64encode(
+        hmac.new(raw_key, message, hashlib.sha256).digest()
+    ).decode()
     monkeypatch.setenv("GITLAB_WEBHOOK_SIGNING_TOKEN", token)
-    headers = {"webhook-id": message_id, "webhook-timestamp": timestamp, "webhook-signature": f"v1,{digest}"}
+    headers = {
+        "webhook-id": message_id,
+        "webhook-timestamp": timestamp,
+        "webhook-signature": f"v1,{digest}",
+    }
     assert verify_webhook("gitlab", headers, body)
 
 

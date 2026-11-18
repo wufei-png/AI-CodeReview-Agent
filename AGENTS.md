@@ -12,14 +12,15 @@
 - `python api.py`: run the Flask service on port 5001.
 - `streamlit run ui.py --server.port=5002`: run the dashboard.
 - `python -m biz.agent.worker`: process queued external-agent review jobs.
-- `ruff check --select E4,E7,E9,F biz tests`: run the CI lint job locally (Ruff 0.16.5).
+- `python -m ruff check biz tests`: run the CI lint job locally (Ruff 0.16.5).
+- `python -m ruff format --check .`: run the CI format check locally.
 - `pytest`: run the full suite configured by `pytest.ini`.
 - `pytest tests/agent/ --cov=biz.agent --cov-report=term-missing`: check agent coverage.
 - `docker compose up --build -d`: build and run the containerized services.
 
 ## Coding Style & Naming Conventions
 
-Use four-space indentation and surrounding PEP 8-style Python. Use `snake_case` for modules, functions, and variables; `PascalCase` for classes; and `UPPER_SNAKE_CASE` for environment variables and constants. Type new public interfaces and group imports as standard library, third-party, then local. CI enforces Ruff 0.16.5 with the base E4/E7/E9/F rules; no formatter is enforced, so avoid unrelated formatting churn.
+Use four-space indentation and surrounding PEP 8-style Python. Use `snake_case` for modules, functions, and variables; `PascalCase` for classes; and `UPPER_SNAKE_CASE` for environment variables and constants. Type new public interfaces and group imports as standard library, third-party, then local. CI enforces Ruff 0.16.5 with the configured lint rules and a repository-wide format check; run `python -m ruff format .` before committing so the format gate stays green.
 
 ## Testing Guidelines
 

@@ -12,6 +12,7 @@ class BranchReviewFunc(LLMReviewFunc):
     """
     对代码分支进行审查。
     """
+
     SYSTEM_PROMPT = """
         你是一位资深的软件架构师，本次任务是对一个代码库的分支名称进行审查，具体要求如下：
         
@@ -65,9 +66,12 @@ class BranchReviewFunc(LLMReviewFunc):
         # 获取 GitLab 项目 URL
         while True:
             gitlab_project_url = input(
-                "请输入 GitLab 项目的完整 URL (例如 https://gitlab.example.com/root/test): ").strip()
+                "请输入 GitLab 项目的完整 URL (例如 https://gitlab.example.com/root/test): "
+            ).strip()
             try:
-                self.gitlab_url, self.project_id = self.parse_gitlab_url(gitlab_project_url)
+                self.gitlab_url, self.project_id = self.parse_gitlab_url(
+                    gitlab_project_url
+                )
                 break
             except ValueError as e:
                 print(e)
@@ -91,7 +95,7 @@ class BranchReviewFunc(LLMReviewFunc):
             {"role": "user", "content": self.user_prompt},
         ]
 
-    def mask_token(self,token, visible_start=4, visible_end=4, mask_char="*"):
+    def mask_token(self, token, visible_start=4, visible_end=4, mask_char="*"):
         if len(token) <= visible_start + visible_end:
             return token  # 太短的 token 不脱敏
 
@@ -101,7 +105,7 @@ class BranchReviewFunc(LLMReviewFunc):
     def process(self):
         self.parse_arguments()
         print("self.gitlab_url", self.gitlab_url)
-        print("self.access_token",self.mask_token(self.access_token))
+        print("self.access_token", self.mask_token(self.access_token))
         print("self.project_id", self.project_id)
         gl = Gitlab(self.gitlab_url, private_token=self.access_token)
         project = gl.projects.get(self.project_id)
@@ -118,8 +122,10 @@ class BranchReviewFunc(LLMReviewFunc):
         else:
             print("用户取消操作，退出程序。")
 
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv("conf/.env")
     func = BranchReviewFunc()
     func.process()

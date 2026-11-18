@@ -11,15 +11,18 @@ class ZhipuAIClient(BaseClient):
     def __init__(self, api_key: str = None):
         self.api_key = api_key or os.getenv("ZHIPUAI_API_KEY")
         if not self.api_key:
-            raise ValueError("API key is required. Please provide it or set it in the environment variables.")
+            raise ValueError(
+                "API key is required. Please provide it or set it in the environment variables."
+            )
 
         self.client = ZhipuAI(api_key=api_key)
         self.default_model = os.getenv("ZHIPUAI_API_MODEL", "GLM-4-Flash")
 
-    def completions(self,
-                    messages: List[Dict[str, str]],
-                    model: Optional[str] | NotGiven = NOT_GIVEN,
-                    ) -> str:
+    def completions(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] | NotGiven = NOT_GIVEN,
+    ) -> str:
         model = model or self.default_model
         completion = self.client.chat.completions.create(
             model=model,

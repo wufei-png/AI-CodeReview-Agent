@@ -1,4 +1,5 @@
 """Shared environment flag parsing."""
+
 from __future__ import annotations
 
 

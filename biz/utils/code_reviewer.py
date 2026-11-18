@@ -16,7 +16,9 @@ class BaseReviewer(abc.ABC):
 
     def __init__(self, prompt_key: str):
         self.client = Factory().getClient()
-        self.prompts = self._load_prompts(prompt_key, os.getenv("REVIEW_STYLE", "professional"))
+        self.prompts = self._load_prompts(
+            prompt_key, os.getenv("REVIEW_STYLE", "professional")
+        )
 
     def _load_prompts(self, prompt_key: str, style="professional") -> Dict[str, Any]:
         """加载提示词配置"""
@@ -105,4 +107,3 @@ class CodeReviewer(BaseReviewer):
             return 0
         match = re.search(r"总分[:：]\s*(\d+)分?", review_text)
         return int(match.group(1)) if match else 0
-

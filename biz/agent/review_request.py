@@ -1,4 +1,5 @@
 """Normalize provider webhook payloads into one agent review request."""
+
 from __future__ import annotations
 
 import hashlib
@@ -26,7 +27,9 @@ class AgentReviewRequest:
 
     @property
     def platform_cli(self) -> str:
-        return {"gitlab": "glab", "github": "gh", "gitea": "tea"}.get(self.provider, "the platform CLI")
+        return {"gitlab": "glab", "github": "gh", "gitea": "tea"}.get(
+            self.provider, "the platform CLI"
+        )
 
     @property
     def title(self) -> str:
@@ -35,7 +38,9 @@ class AgentReviewRequest:
 
     @property
     def review_marker(self) -> str:
-        digest = hashlib.sha256(f"{self.provider}|{self.review_url}".encode("utf-8")).hexdigest()[:20]
+        digest = hashlib.sha256(
+            f"{self.provider}|{self.review_url}".encode("utf-8")
+        ).hexdigest()[:20]
         return f"ai-codereview:{digest}"
 
     @property
@@ -63,7 +68,9 @@ def _safe_remote_url(value: str) -> str:
     return re.sub(r"(https?://)[^/@\s]+@", r"\1***@", value)
 
 
-def _event_key(provider: str, review_url: str, revision: str, target_revision: str = "") -> str:
+def _event_key(
+    provider: str, review_url: str, revision: str, target_revision: str = ""
+) -> str:
     value = "|".join((provider, review_url, revision, target_revision))
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -71,15 +78,31 @@ def _event_key(provider: str, review_url: str, revision: str, target_revision: s
 def _gitlab_request(data: dict, gitlab_url: str) -> AgentReviewRequest | None:
     project = data.get("project") or {}
     attrs = data.get("object_attributes") or {}
-    source_project = data.get("source") or data.get("source_project") or attrs.get("source") or attrs.get("source_project") or {}
-    target_project_path = project.get("path_with_namespace") or project.get("name") or ""
-    project_path = source_project.get("path_with_namespace") or source_project.get("name") or target_project_path
+    source_project = (
+        data.get("source")
+        or data.get("source_project")
+        or attrs.get("source")
+        or attrs.get("source_project")
+        or {}
+    )
+    target_project_path = (
+        project.get("path_with_namespace") or project.get("name") or ""
+    )
+    project_path = (
+        source_project.get("path_with_namespace")
+        or source_project.get("name")
+        or target_project_path
+    )
     target_remote_url = (
         project.get("git_http_url")
         or project.get("http_url_to_repo")
         or project.get("ssh_url_to_repo")
         or project.get("git_ssh_url")
-        or (f"{gitlab_url.rstrip('/')}/{target_project_path}.git" if target_project_path and gitlab_url else "")
+        or (
+            f"{gitlab_url.rstrip('/')}/{target_project_path}.git"
+            if target_project_path and gitlab_url
+            else ""
+        )
     )
     remote_url = (
         source_project.get("git_http_url")
@@ -95,7 +118,9 @@ def _gitlab_request(data: dict, gitlab_url: str) -> AgentReviewRequest | None:
     # GitLab does not consistently include the target SHA. updated_at keeps
     # exact webhook redeliveries idempotent while still allowing a later MR
     # update with the same source SHA to reach the resolved-revision check.
-    target_revision = str(attrs.get("target_branch_sha") or attrs.get("updated_at") or "")
+    target_revision = str(
+        attrs.get("target_branch_sha") or attrs.get("updated_at") or ""
+    )
     if not (remote_url and review_url and project_path):
         return None
     action = str(attrs.get("action") or data.get("event_type") or "update").lower()
@@ -121,8 +146,15 @@ def _github_like_request(data: dict, provider: str) -> AgentReviewRequest | None
     head = pr.get("head") or {}
     base = pr.get("base") or {}
     head_repo = head.get("repo") or {}
-    remote_url = head_repo.get("clone_url") or head_repo.get("ssh_url") or repo.get("clone_url") or repo.get("ssh_url")
-    project_path = head_repo.get("full_name") or repo.get("full_name") or repo.get("name")
+    remote_url = (
+        head_repo.get("clone_url")
+        or head_repo.get("ssh_url")
+        or repo.get("clone_url")
+        or repo.get("ssh_url")
+    )
+    project_path = (
+        head_repo.get("full_name") or repo.get("full_name") or repo.get("name")
+    )
     review_url = pr.get("html_url") or pr.get("url")
     action = str(data.get("action") or "update").lower()
     revision = head.get("sha") or ""
@@ -145,7 +177,9 @@ def _github_like_request(data: dict, provider: str) -> AgentReviewRequest | None
     )
 
 
-def from_webhook(provider: str, data: dict, *, gitlab_url: str = "") -> AgentReviewRequest | None:
+def from_webhook(
+    provider: str, data: dict, *, gitlab_url: str = ""
+) -> AgentReviewRequest | None:
     provider = provider.lower()
     if provider == "gitlab":
         return _gitlab_request(data, gitlab_url)
@@ -156,8 +190,24 @@ def from_webhook(provider: str, data: dict, *, gitlab_url: str = "") -> AgentRev
 
 def is_reviewable_action(request: AgentReviewRequest) -> bool:
     if request.provider == "gitlab":
-        return request.action in {"open", "opened", "update", "updated", "reopen", "reopened"}
-    return request.action in {"open", "opened", "synchronize", "synchronized", "reopen", "reopened", "update", "updated"}
+        return request.action in {
+            "open",
+            "opened",
+            "update",
+            "updated",
+            "reopen",
+            "reopened",
+        }
+    return request.action in {
+        "open",
+        "opened",
+        "synchronize",
+        "synchronized",
+        "reopen",
+        "reopened",
+        "update",
+        "updated",
+    }
 
 
 def build_prompt(

@@ -1,4 +1,5 @@
 """Local validation of an unchanged provider-native Rolling Review Note receipt."""
+
 from __future__ import annotations
 
 import json
@@ -31,14 +32,18 @@ def _contradicts_revision(body: str, label: str, revision: str) -> bool:
     field = rf"(?:^|[;|])[ \t*`_>#-]*(?:Current[ _-]+)?{label}[ _-]+Revision[ \t*`_]*(?::|：|=|\|)"
     for match in re.finditer(field, body, re.IGNORECASE | re.MULTILINE):
         # Keep history and other fields out of the current field's value.
-        value = re.split(r"[\n;|]", body[match.end():], maxsplit=1)[0]
-        sha = re.search(r"(?<![a-zA-Z0-9])(?:[a-fA-F0-9]{64}|[a-fA-F0-9]{40})(?![a-zA-Z0-9])", value)
+        value = re.split(r"[\n;|]", body[match.end() :], maxsplit=1)[0]
+        sha = re.search(
+            r"(?<![a-zA-Z0-9])(?:[a-fA-F0-9]{64}|[a-fA-F0-9]{40})(?![a-zA-Z0-9])", value
+        )
         if sha is not None and sha.group() != revision:
             return True
     return False
 
 
-def _target_error(payload: dict, request: AgentReviewRequest, note_id: str) -> str | None:
+def _target_error(
+    payload: dict, request: AgentReviewRequest, note_id: str
+) -> str | None:
     review = urlparse(request.review_url)
     match = re.search(r"/(?:pull|pulls|issues|merge_requests)/(\d+)/?$", review.path)
     if match is None:
@@ -54,16 +59,26 @@ def _target_error(payload: dict, request: AgentReviewRequest, note_id: str) -> s
 
     browser_paths = {review.path.rstrip("/")}
     if request.provider in {"github", "gitea"}:
-        browser_paths.update({f"/{project}/issues/{number}", f"/{project}/pull/{number}", f"/{project}/pulls/{number}"})
+        browser_paths.update(
+            {
+                f"/{project}/issues/{number}",
+                f"/{project}/pull/{number}",
+                f"/{project}/pulls/{number}",
+            }
+        )
     for field in ("html_url", "web_url", "noteable_url"):
         if not payload.get(field):
             continue
         candidate = urlparse(str(payload[field]))
-        if (candidate.scheme, candidate.netloc, unquote(candidate.path).rstrip("/")) not in {
-            (review.scheme, review.netloc, path) for path in browser_paths
-        }:
+        if (
+            candidate.scheme,
+            candidate.netloc,
+            unquote(candidate.path).rstrip("/"),
+        ) not in {(review.scheme, review.netloc, path) for path in browser_paths}:
             return f"{field} belongs to another review"
-        fragment_id = re.fullmatch(r"(?:issuecomment-|note_|comment-)(\d+)", candidate.fragment)
+        fragment_id = re.fullmatch(
+            r"(?:issuecomment-|note_|comment-)(\d+)", candidate.fragment
+        )
         if fragment_id and fragment_id.group(1) != note_id:
             return f"{field} identifies another note"
 
@@ -85,13 +100,20 @@ def _target_error(payload: dict, request: AgentReviewRequest, note_id: str) -> s
         if candidate.netloc not in allowed_hosts or native.group(1) != project:
             return f"{field} belongs to another repository"
         resource = native.group(3)
-        if resource not in {number, f"comments/{note_id}", f"{number}/comments/{note_id}"}:
+        if resource not in {
+            number,
+            f"comments/{note_id}",
+            f"{number}/comments/{note_id}",
+        }:
             return f"{field} identifies another review or note"
     return None
 
 
 def read_delivery_receipt(
-    path: Path, request: AgentReviewRequest, source_revision: str, target_revision: str,
+    path: Path,
+    request: AgentReviewRequest,
+    source_revision: str,
+    target_revision: str,
 ) -> DeliveryReceipt:
     """Confirm snapshot evidence locally; this does not perform provider readback."""
     try:
@@ -99,7 +121,9 @@ def read_delivery_receipt(
     except FileNotFoundError:
         return DeliveryReceipt(error="delivery receipt missing")
     except (OSError, UnicodeError) as exc:
-        return DeliveryReceipt(error=f"delivery receipt unreadable: {type(exc).__name__}")
+        return DeliveryReceipt(
+            error=f"delivery receipt unreadable: {type(exc).__name__}"
+        )
     try:
         payload = json.loads(raw)
     except ValueError:
@@ -114,17 +138,30 @@ def read_delivery_receipt(
         return DeliveryReceipt(raw=raw, error="delivery receipt has no note body")
     marker = f"<!-- {request.review_marker} -->"
     if body.count(marker) != 1:
-        return DeliveryReceipt(raw=raw, error="delivery receipt must contain exactly one review marker")
+        return DeliveryReceipt(
+            raw=raw, error="delivery receipt must contain exactly one review marker"
+        )
     for label, revision in (("source", source_revision), ("target", target_revision)):
-        if (not revision
-                or not re.search(rf"(?<![a-zA-Z0-9]){re.escape(revision)}(?![a-zA-Z0-9])", body)
-                or _contradicts_revision(body, label, revision)):
-            return DeliveryReceipt(raw=raw, error=f"delivery receipt does not match {label} revision")
+        if (
+            not revision
+            or not re.search(
+                rf"(?<![a-zA-Z0-9]){re.escape(revision)}(?![a-zA-Z0-9])", body
+            )
+            or _contradicts_revision(body, label, revision)
+        ):
+            return DeliveryReceipt(
+                raw=raw, error=f"delivery receipt does not match {label} revision"
+            )
     try:
         error = _target_error(payload, request, note_id)
     except ValueError:
         error = "delivery receipt has a malformed URL"
     if error:
         return DeliveryReceipt(raw=raw, error=error)
-    note_url = payload.get("html_url") or payload.get("web_url") or payload.get("noteable_url") or ""
+    note_url = (
+        payload.get("html_url")
+        or payload.get("web_url")
+        or payload.get("noteable_url")
+        or ""
+    )
     return DeliveryReceipt(raw=raw, note_id=note_id, note_url=str(note_url))

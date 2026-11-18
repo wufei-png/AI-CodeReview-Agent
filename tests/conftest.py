@@ -25,10 +25,7 @@ def tmp_repo(tmp_path: Path) -> Path:
         "def main():\n"
         "    print(greet('world'))\n"
     )
-    (repo / "src" / "util.py").write_text(
-        "def add(a, b):\n"
-        "    return a + b\n"
-    )
+    (repo / "src" / "util.py").write_text("def add(a, b):\n    return a + b\n")
     (repo / "tests" / "test_main.py").write_text(
         "from src.main import greet\n"
         "\n"
@@ -38,7 +35,9 @@ def tmp_repo(tmp_path: Path) -> Path:
     (repo / "README.md").write_text("# test repo\n")
 
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "[email protected]"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "[email protected]"], cwd=repo, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)

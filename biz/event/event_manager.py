@@ -31,9 +31,14 @@ def on_merge_request_reviewed(mr_review_entity: MergeRequestReviewEntity):
 
 {mr_review_entity.review_result}
     """
-    notifier.send_notification(content=im_msg, msg_type='markdown', title='Merge Request Review',
-                               project_name=mr_review_entity.project_name, url_slug=mr_review_entity.url_slug,
-                               webhook_data=mr_review_entity.webhook_data)
+    notifier.send_notification(
+        content=im_msg,
+        msg_type="markdown",
+        title="Merge Request Review",
+        project_name=mr_review_entity.project_name,
+        url_slug=mr_review_entity.url_slug,
+        webhook_data=mr_review_entity.webhook_data,
+    )
 
     # 记录到数据库
     ReviewService().insert_mr_review_log(mr_review_entity)
@@ -45,10 +50,10 @@ def on_push_reviewed(entity: PushReviewEntity):
     im_msg += "#### 提交记录:\n"
 
     for commit in entity.commits:
-        message = commit.get('message', '').strip()
-        author = commit.get('author', 'Unknown Author')
-        timestamp = commit.get('timestamp', '')
-        url = commit.get('url', '#')
+        message = commit.get("message", "").strip()
+        author = commit.get("author", "Unknown Author")
+        timestamp = commit.get("timestamp", "")
+        url = commit.get("url", "#")
         im_msg += (
             f"- **提交信息**: {message}\n"
             f"- **提交者**: {author}\n"
@@ -58,9 +63,14 @@ def on_push_reviewed(entity: PushReviewEntity):
 
     if entity.review_result:
         im_msg += f"#### AI Review 结果: \n {entity.review_result}\n\n"
-    notifier.send_notification(content=im_msg, msg_type='markdown',title=f"{entity.project_name} Push Event",
-                               project_name=entity.project_name, url_slug=entity.url_slug,
-                               webhook_data=entity.webhook_data)
+    notifier.send_notification(
+        content=im_msg,
+        msg_type="markdown",
+        title=f"{entity.project_name} Push Event",
+        project_name=entity.project_name,
+        url_slug=entity.url_slug,
+        webhook_data=entity.webhook_data,
+    )
 
     # 记录到数据库
     ReviewService().insert_push_review_log(entity)

@@ -1,4 +1,3 @@
 """
 Gitea integration handlers.
 """
-

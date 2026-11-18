@@ -80,6 +80,7 @@ class ToolCall:
     name: str
     arguments: dict
 
+
 @dataclass
 class LLMResponse:
     content: str | None
@@ -99,6 +100,7 @@ class Tool(abc.ABC):
 
     @abc.abstractmethod
     def execute(self, **kwargs) -> ToolResult: ...
+
 
 @dataclass
 class ToolResult:
@@ -158,8 +160,7 @@ Top-level entry point used by `worker.py`. Mirrors `CodeReviewer.review_and_stri
 
 ```python
 class AgenticReviewer:
-    def review(self, diffs_text: str, commits_text: str) -> str:
-        ...
+    def review(self, diffs_text: str, commits_text: str) -> str: ...
 ```
 
 Factory method `build_from_event(webhook_data, ...)` infers `provider / project / ref`, invokes `LocalRepoSyncer.sync_to(...)`, returns an instance bound to the repo root.

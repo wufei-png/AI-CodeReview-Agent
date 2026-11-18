@@ -5,7 +5,12 @@ from pathlib import Path
 import streamlit as st
 
 # 设置Streamlit主题 - 必须是第一个st命令
-st.set_page_config(layout="wide", page_title="AI代码审查平台", page_icon="🤖", initial_sidebar_state="expanded")
+st.set_page_config(
+    layout="wide",
+    page_title="AI代码审查平台",
+    page_icon="🤖",
+    initial_sidebar_state="expanded",
+)
 
 import datetime
 import os
@@ -25,7 +30,6 @@ import streamlit as st
 from biz.service.review_service import ReviewService
 from matplotlib.ticker import MaxNLocator
 from streamlit_cookies_manager import CookieManager
-
 
 
 def set_global_font():
@@ -49,12 +53,13 @@ set_global_font()
 # 从环境变量中读取用户名和密码
 DASHBOARD_USER = os.getenv("DASHBOARD_USER", "admin")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "admin")
-USER_CREDENTIALS = {
-    DASHBOARD_USER: DASHBOARD_PASSWORD
-}
+USER_CREDENTIALS = {DASHBOARD_USER: DASHBOARD_PASSWORD}
 
 # 用于生成和验证token的密钥
-SECRET_KEY = os.getenv("DASHBOARD_SECRET_KEY", "fac8cf149bdd616c07c1a675c4571ccacc40d7f7fe16914cfe0f9f9d966bb773")
+SECRET_KEY = os.getenv(
+    "DASHBOARD_SECRET_KEY",
+    "fac8cf149bdd616c07c1a675c4571ccacc40d7f7fe16914cfe0f9f9d966bb773",
+)
 
 # 初始化cookie管理器
 cookies = CookieManager()
@@ -66,14 +71,12 @@ def generate_token(username):
     message = f"{username}:{timestamp}"
 
     # 使用HMAC-SHA256生成签名
-    signature = hmac.new(
-        SECRET_KEY.encode(),
-        message.encode(),
-        hashlib.sha256
-    ).digest()
+    signature = hmac.new(SECRET_KEY.encode(), message.encode(), hashlib.sha256).digest()
 
     # 将消息和签名编码为base64
-    token = base64.b64encode(f"{message}:{base64.b64encode(signature).decode()}".encode()).decode()
+    token = base64.b64encode(
+        f"{message}:{base64.b64encode(signature).decode()}".encode()
+    ).decode()
     return token
 
 
@@ -87,9 +90,7 @@ def verify_token(token):
 
         # 验证签名
         expected_signature = hmac.new(
-            SECRET_KEY.encode(),
-            message.encode(),
-            hashlib.sha256
+            SECRET_KEY.encode(), message.encode(), hashlib.sha256
         ).digest()
 
         actual_signature = base64.b64decode(signature)
@@ -111,46 +112,46 @@ def check_login_status():
     if not cookies.ready():
         st.stop()
 
-    if 'login_status' not in st.session_state:
-        st.session_state['login_status'] = False
+    if "login_status" not in st.session_state:
+        st.session_state["login_status"] = False
 
     # 尝试从cookie获取token
-    auth_token = cookies.get('auth_token')
+    auth_token = cookies.get("auth_token")
     if auth_token:
         username = verify_token(auth_token)
         if username and username in USER_CREDENTIALS:
-            st.session_state['login_status'] = True
-            st.session_state['username'] = username
-            st.session_state['saved_username'] = username
+            st.session_state["login_status"] = True
+            st.session_state["username"] = username
+            st.session_state["saved_username"] = username
 
-    return st.session_state['login_status']
+    return st.session_state["login_status"]
 
 
 # 设置登录状态
 def set_login_status(username, remember):
-    st.session_state['login_status'] = True
-    st.session_state['username'] = username
-    st.session_state['saved_username'] = username if remember else ''
+    st.session_state["login_status"] = True
+    st.session_state["username"] = username
+    st.session_state["saved_username"] = username if remember else ""
 
     if remember:
         # 生成并保存token到cookie
         auth_token = generate_token(username)
-        cookies['auth_token'] = auth_token
+        cookies["auth_token"] = auth_token
     else:
         # 如果不记住登录状态，清除cookie
-        if 'auth_token' in cookies:
-            del cookies['auth_token']
+        if "auth_token" in cookies:
+            del cookies["auth_token"]
     cookies.save()
 
 
 # 获取保存的用户名
 def get_saved_credentials():
-    auth_token = cookies.get('auth_token')
+    auth_token = cookies.get("auth_token")
     if auth_token:
         username = verify_token(auth_token)
         if username:
-            return username, ''
-    return st.session_state.get('saved_username', ''), ''
+            return username, ""
+    return st.session_state.get("saved_username", ""), ""
 
 
 # 登录验证函数
@@ -162,21 +163,35 @@ def authenticate(username, password, remember_password=False):
 
 
 # 获取数据函数
-def get_data(service_func, authors=None, project_names=None, updated_at_gte=None, updated_at_lte=None, columns=None):
-    df = service_func(authors=authors, project_names=project_names, updated_at_gte=updated_at_gte,
-                      updated_at_lte=updated_at_lte)
+def get_data(
+    service_func,
+    authors=None,
+    project_names=None,
+    updated_at_gte=None,
+    updated_at_lte=None,
+    columns=None,
+):
+    df = service_func(
+        authors=authors,
+        project_names=project_names,
+        updated_at_gte=updated_at_gte,
+        updated_at_lte=updated_at_lte,
+    )
 
     if df.empty:
         return pd.DataFrame(columns=columns)
 
     if "updated_at" in df.columns:
         df["updated_at"] = df["updated_at"].apply(
-            lambda ts: datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-            if isinstance(ts, (int, float)) else ts
+            lambda ts: (
+                datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(ts, (int, float))
+                else ts
+            )
         )
 
     def format_delta(row):
-        if not math.isnan(row['additions']) and not math.isnan(row['deletions']):
+        if not math.isnan(row["additions"]) and not math.isnan(row["deletions"]):
             return f"+{int(row['additions'])}  -{int(row['deletions'])}"
         else:
             return ""
@@ -191,7 +206,8 @@ def get_data(service_func, authors=None, project_names=None, updated_at_gte=None
 
 
 # 隐藏默认的Streamlit菜单和页眉（display:none 避免 visibility:hidden 仍占位导致顶部留白）
-st.markdown("""
+st.markdown(
+    """
     <style>
         #MainMenu {visibility: hidden;}
         header[data-testid="stHeader"] {display: none !important;}
@@ -200,7 +216,9 @@ st.markdown("""
         .main .block-container {margin-top: 0 !important;}
         section[data-testid="stMain"] > div {padding-top: 0rem !important;}
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 # 自定义CSS样式
 st.markdown(
@@ -292,7 +310,7 @@ st.markdown(
     }
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 
@@ -303,7 +321,9 @@ def login_page():
     with col2:
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
         st.markdown('<div class="platform-icon">🤖</div>', unsafe_allow_html=True)
-        st.markdown('<h1 class="login-title">AI代码审查平台</h1>', unsafe_allow_html=True)
+        st.markdown(
+            '<h1 class="login-title">AI代码审查平台</h1>', unsafe_allow_html=True
+        )
 
         # 如果用户名和密码都为 'admin'，提示用户修改密码
         if DASHBOARD_USER == "admin" and DASHBOARD_PASSWORD == "admin":
@@ -314,7 +334,9 @@ def login_page():
                 "2. 修改 `DASHBOARD_USER` 和 `DASHBOARD_PASSWORD` 变量\n"
                 "3. 保存并重启应用"
             )
-            st.write(f"当前用户名: `{DASHBOARD_USER}`, 当前密码: `{DASHBOARD_PASSWORD}`")
+            st.write(
+                f"当前用户名: `{DASHBOARD_USER}`, 当前密码: `{DASHBOARD_PASSWORD}`"
+            )
 
         # 获取保存的用户名和密码
         saved_username, saved_password = get_saved_credentials()
@@ -331,7 +353,7 @@ def login_page():
                     st.rerun()  # 重新运行应用以显示主要内容
                 else:
                     st.error("用户名或密码错误")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # 单列展示用较小画布，便于一行多图
@@ -340,170 +362,182 @@ _DEFAULT_XTICK_FONT = 8
 
 
 # 生成项目提交数量图表
-def generate_project_count_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT):
+def generate_project_count_chart(
+    df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT
+):
     if df.empty:
         st.info("没有数据可供展示")
         return
 
     # 计算每个项目的提交数量
-    project_counts = df['project_name'].value_counts().reset_index()
-    project_counts.columns = ['project_name', 'count']
+    project_counts = df["project_name"].value_counts().reset_index()
+    project_counts.columns = ["project_name", "count"]
 
     # 生成颜色列表，每个项目一个颜色
-    colors = plt.colormaps['tab20'].resampled(len(project_counts))
+    colors = plt.colormaps["tab20"].resampled(len(project_counts))
 
     # 显示提交数量柱状图
     fig1, ax1 = plt.subplots(figsize=figsize)
     ax1.bar(
-        project_counts['project_name'],
-        project_counts['count'],
-        color=[colors(i) for i in range(len(project_counts))]
+        project_counts["project_name"],
+        project_counts["count"],
+        color=[colors(i) for i in range(len(project_counts))],
     )
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.xticks(rotation=45, ha='right', fontsize=xtick_fs)
+    plt.xticks(rotation=45, ha="right", fontsize=xtick_fs)
     plt.tight_layout()
     st.pyplot(fig1)
     plt.close(fig1)
 
 
 # 生成项目平均分数图表
-def generate_project_score_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT):
+def generate_project_score_chart(
+    df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT
+):
     if df.empty:
         st.info("没有数据可供展示")
         return
 
     # 计算每个项目的平均分数
-    project_scores = df.groupby('project_name')['score'].mean().reset_index()
-    project_scores.columns = ['project_name', 'average_score']
+    project_scores = df.groupby("project_name")["score"].mean().reset_index()
+    project_scores.columns = ["project_name", "average_score"]
 
     # 生成颜色列表，每个项目一个颜色
     # colors = plt.cm.get_cmap('Accent', len(project_scores))  # 使用'tab20'颜色映射，适合分类数据
-    colors = plt.colormaps['Accent'].resampled(len(project_scores))
+    colors = plt.colormaps["Accent"].resampled(len(project_scores))
     # 显示平均分数柱状图
     fig2, ax2 = plt.subplots(figsize=figsize)
     ax2.bar(
-        project_scores['project_name'],
-        project_scores['average_score'],
-        color=[colors(i) for i in range(len(project_scores))]
+        project_scores["project_name"],
+        project_scores["average_score"],
+        color=[colors(i) for i in range(len(project_scores))],
     )
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.xticks(rotation=45, ha='right', fontsize=xtick_fs)
+    plt.xticks(rotation=45, ha="right", fontsize=xtick_fs)
     plt.tight_layout()
     st.pyplot(fig2)
     plt.close(fig2)
 
 
 # 生成人员提交数量图表
-def generate_author_count_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT):
+def generate_author_count_chart(
+    df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT
+):
     if df.empty:
         st.info("没有数据可供展示")
         return
 
     # 计算每个人员的提交数量
-    author_counts = df['author'].value_counts().reset_index()
-    author_counts.columns = ['author', 'count']
+    author_counts = df["author"].value_counts().reset_index()
+    author_counts.columns = ["author", "count"]
 
     # 生成颜色列表，每个项目一个颜色
-    colors = plt.colormaps['Paired'].resampled(len(author_counts))
+    colors = plt.colormaps["Paired"].resampled(len(author_counts))
     # 显示提交数量柱状图
     fig1, ax1 = plt.subplots(figsize=figsize)
     ax1.bar(
-        author_counts['author'],
-        author_counts['count'],
-        color=[colors(i) for i in range(len(author_counts))]
+        author_counts["author"],
+        author_counts["count"],
+        color=[colors(i) for i in range(len(author_counts))],
     )
     ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.xticks(rotation=45, ha='right', fontsize=xtick_fs)
+    plt.xticks(rotation=45, ha="right", fontsize=xtick_fs)
     plt.tight_layout()
     st.pyplot(fig1)
     plt.close(fig1)
 
 
 # 生成人员平均分数图表
-def generate_author_score_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT):
+def generate_author_score_chart(
+    df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT
+):
     if df.empty:
         st.info("没有数据可供展示")
         return
 
     # 计算每个人员的平均分数
-    author_scores = df.groupby('author')['score'].mean().reset_index()
-    author_scores.columns = ['author', 'average_score']
+    author_scores = df.groupby("author")["score"].mean().reset_index()
+    author_scores.columns = ["author", "average_score"]
 
     # 显示平均分数柱状图
     fig2, ax2 = plt.subplots(figsize=figsize)
     # 生成颜色列表，每个项目一个颜色
-    colors = plt.colormaps['Pastel1'].resampled(len(author_scores))
+    colors = plt.colormaps["Pastel1"].resampled(len(author_scores))
     ax2.bar(
-        author_scores['author'],
-        author_scores['average_score'],
-        color=[colors(i) for i in range(len(author_scores))]
+        author_scores["author"],
+        author_scores["average_score"],
+        color=[colors(i) for i in range(len(author_scores))],
     )
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.xticks(rotation=45, ha='right', fontsize=xtick_fs)
+    plt.xticks(rotation=45, ha="right", fontsize=xtick_fs)
     plt.tight_layout()
     st.pyplot(fig2)
     plt.close(fig2)
 
 
-def generate_author_code_line_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT):
+def generate_author_code_line_chart(
+    df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT
+):
     if df.empty:
         st.info("没有数据可供展示")
         return
 
-    if 'additions' not in df.columns or 'deletions' not in df.columns:
+    if "additions" not in df.columns or "deletions" not in df.columns:
         st.warning("无法生成代码行数图表：缺少必要的数据列")
         return
 
-    author_code_lines_add = df.groupby('author')['additions'].sum().reset_index()
-    author_code_lines_add.columns = ['author', 'additions']
-    author_code_lines_del = df.groupby('author')['deletions'].sum().reset_index()
-    author_code_lines_del.columns = ['author', 'deletions']
+    author_code_lines_add = df.groupby("author")["additions"].sum().reset_index()
+    author_code_lines_add.columns = ["author", "additions"]
+    author_code_lines_del = df.groupby("author")["deletions"].sum().reset_index()
+    author_code_lines_del.columns = ["author", "deletions"]
     fig3, ax3 = plt.subplots(figsize=figsize)
     ax3.bar(
-        author_code_lines_add['author'],
-        author_code_lines_add['additions'],
-        color=(0.7, 1, 0.7)
+        author_code_lines_add["author"],
+        author_code_lines_add["additions"],
+        color=(0.7, 1, 0.7),
     )
     ax3.bar(
-        author_code_lines_del['author'],
-        -author_code_lines_del['deletions'],
-        color=(1, 0.7, 0.7)
+        author_code_lines_del["author"],
+        -author_code_lines_del["deletions"],
+        color=(1, 0.7, 0.7),
     )
-    ax3.axhline(y=0, color='gray', linestyle='-', linewidth=0.5)
-    plt.xticks(rotation=45, ha='right', fontsize=xtick_fs)
+    ax3.axhline(y=0, color="gray", linestyle="-", linewidth=0.5)
+    plt.xticks(rotation=45, ha="right", fontsize=xtick_fs)
     plt.tight_layout()
     st.pyplot(fig3)
     plt.close(fig3)
 
 
-def generate_project_code_line_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT):
+def generate_project_code_line_chart(
+    df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_fs=_DEFAULT_XTICK_FONT
+):
     """按项目汇总增删行数，展示形式与 generate_author_code_line_chart 一致（绿色柱为新增，红色柱为删减为负轴）"""
     if df.empty:
         st.info("没有数据可供展示")
         return
 
-    if 'additions' not in df.columns or 'deletions' not in df.columns:
+    if "additions" not in df.columns or "deletions" not in df.columns:
         st.warning("无法生成项目代码行数图表：缺少必要的数据列")
         return
 
-    proj_add = df.groupby('project_name')['additions'].sum().reset_index()
-    proj_add.columns = ['project_name', 'additions']
-    proj_del = df.groupby('project_name')['deletions'].sum().reset_index()
-    proj_del.columns = ['project_name', 'deletions']
+    proj_add = df.groupby("project_name")["additions"].sum().reset_index()
+    proj_add.columns = ["project_name", "additions"]
+    proj_del = df.groupby("project_name")["deletions"].sum().reset_index()
+    proj_del.columns = ["project_name", "deletions"]
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.bar(
-        proj_add['project_name'],
-        proj_add['additions'],
+        proj_add["project_name"],
+        proj_add["additions"],
         color=(0.7, 1, 0.7),
     )
     ax.bar(
-        proj_del['project_name'],
-        -proj_del['deletions'],
+        proj_del["project_name"],
+        -proj_del["deletions"],
         color=(1, 0.7, 0.7),
     )
-    ax.axhline(y=0, color='gray', linestyle='-', linewidth=0.5)
-    plt.xticks(rotation=45, ha='right', fontsize=xtick_fs)
+    ax.axhline(y=0, color="gray", linestyle="-", linewidth=0.5)
+    plt.xticks(rotation=45, ha="right", fontsize=xtick_fs)
     plt.tight_layout()
     st.pyplot(fig)
     plt.close(fig)
@@ -512,20 +546,22 @@ def generate_project_code_line_chart(df, figsize=_DEFAULT_CHART_FIGSIZE, xtick_f
 # 退出登录函数
 def logout():
     # 清除session状态
-    st.session_state['login_status'] = False
-    st.session_state.pop('username', None)
-    st.session_state.pop('saved_username', None)
+    st.session_state["login_status"] = False
+    st.session_state.pop("username", None)
+    st.session_state.pop("saved_username", None)
 
     # 清除cookie
-    if 'auth_token' in cookies:
-        del cookies['auth_token']
+    if "auth_token" in cookies:
+        del cookies["auth_token"]
     cookies.save()
 
     st.rerun()
 
 
 # Pro 版文档链接（登录后展示）
-PRO_VERSION_URL = "https://github.com/sunmh207/AI-Codereview-Gitlab/blob/main/doc/pro.md"
+PRO_VERSION_URL = (
+    "https://github.com/sunmh207/AI-Codereview-Gitlab/blob/main/doc/pro.md"
+)
 
 
 # 主要内容
@@ -534,8 +570,8 @@ def main_page():
     head_left, head_right = st.columns([7.2, 2.8])
     with head_left:
         st.markdown(
-            '<style>.dash-heading-bar{margin:0 0 0.15rem 0;padding:0;line-height:1.2;} '
-            '.dash-heading-bar h4{margin:0;font-size:1rem;font-weight:600;}</style>'
+            "<style>.dash-heading-bar{margin:0 0 0.15rem 0;padding:0;line-height:1.2;} "
+            ".dash-heading-bar h4{margin:0;font-size:1rem;font-weight:600;}</style>"
             '<div class="dash-heading-bar"><h4>📊 代码审查统计</h4></div>',
             unsafe_allow_html=True,
         )
@@ -548,16 +584,18 @@ def main_page():
         with sub_col_pro:
             st.markdown(
                 '<div class="pro-link-wrap">'
-                '<a href="' + PRO_VERSION_URL + '" target="_blank" rel="noopener noreferrer" class="pro-link">开源版 VS Pro 版</a>'
-                '</div>',
-                unsafe_allow_html=True
+                '<a href="'
+                + PRO_VERSION_URL
+                + '" target="_blank" rel="noopener noreferrer" class="pro-link">开源版 VS Pro 版</a>'
+                "</div>",
+                unsafe_allow_html=True,
             )
 
     current_date = datetime.date.today()
     start_date_default = current_date - datetime.timedelta(days=7)
 
     # 根据环境变量决定是否显示 push_tab
-    show_push_tab = os.environ.get('PUSH_REVIEW_ENABLED', '0') == '1'
+    show_push_tab = os.environ.get("PUSH_REVIEW_ENABLED", "0") == "1"
 
     if show_push_tab:
         mr_tab, push_tab = st.tabs(["合并请求", "代码推送"])
@@ -568,71 +606,114 @@ def main_page():
         with tab:
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                start_date = st.date_input("开始日期", start_date_default, key=f"{tab}_start_date")
+                start_date = st.date_input(
+                    "开始日期", start_date_default, key=f"{tab}_start_date"
+                )
             with col2:
-                end_date = st.date_input("结束日期", current_date, key=f"{tab}_end_date")
+                end_date = st.date_input(
+                    "结束日期", current_date, key=f"{tab}_end_date"
+                )
 
             start_datetime = datetime.datetime.combine(start_date, datetime.time.min)
             end_datetime = datetime.datetime.combine(end_date, datetime.time.max)
 
-            data = get_data(service_func, updated_at_gte=int(start_datetime.timestamp()),
-                            updated_at_lte=int(end_datetime.timestamp()), columns=columns)
-            df = pd.DataFrame(data)
-
-            unique_authors = sorted(df["author"].dropna().unique().tolist()) if not df.empty else []
-            unique_projects = sorted(df["project_name"].dropna().unique().tolist()) if not df.empty else []
-            with col3:
-                authors = st.multiselect("开发者", unique_authors, default=[], key=f"{tab}_authors")
-            with col4:
-                project_names = st.multiselect("项目名称", unique_projects, default=[], key=f"{tab}_projects")
-
-            data = get_data(service_func, authors=authors, project_names=project_names,
-                            updated_at_gte=int(start_datetime.timestamp()),
-                            updated_at_lte=int(end_datetime.timestamp()), columns=columns)
-            df = pd.DataFrame(data)
-
-            st.data_editor(
-                df,
-                use_container_width=True,
-                column_config=column_config
+            data = get_data(
+                service_func,
+                updated_at_gte=int(start_datetime.timestamp()),
+                updated_at_lte=int(end_datetime.timestamp()),
+                columns=columns,
             )
+            df = pd.DataFrame(data)
+
+            unique_authors = (
+                sorted(df["author"].dropna().unique().tolist()) if not df.empty else []
+            )
+            unique_projects = (
+                sorted(df["project_name"].dropna().unique().tolist())
+                if not df.empty
+                else []
+            )
+            with col3:
+                authors = st.multiselect(
+                    "开发者", unique_authors, default=[], key=f"{tab}_authors"
+                )
+            with col4:
+                project_names = st.multiselect(
+                    "项目名称", unique_projects, default=[], key=f"{tab}_projects"
+                )
+
+            data = get_data(
+                service_func,
+                authors=authors,
+                project_names=project_names,
+                updated_at_gte=int(start_datetime.timestamp()),
+                updated_at_lte=int(end_datetime.timestamp()),
+                columns=columns,
+            )
+            df = pd.DataFrame(data)
+
+            st.data_editor(df, use_container_width=True, column_config=column_config)
 
             total_records = len(df)
             average_score = df["score"].mean() if not df.empty else 0
-            st.markdown(f"**总记录数:** {total_records}，**平均得分:** {average_score:.2f}")
+            st.markdown(
+                f"**总记录数:** {total_records}，**平均得分:** {average_score:.2f}"
+            )
 
             # 所有统计图同一行排列（画布与坐标轴字号收窄以适配宽幅多列）
             chart_title_css = "<div style='text-align:center;font-size:clamp(11px,0.95vw,14px);line-height:1.2;margin:0 0 0.2rem 0;'><b>{}</b></div>"
             c1, c2, c3, c4, c5, c6 = st.columns(6)
             with c1:
-                st.markdown(chart_title_css.format("项目提交统计"), unsafe_allow_html=True)
+                st.markdown(
+                    chart_title_css.format("项目提交统计"), unsafe_allow_html=True
+                )
                 generate_project_count_chart(df)
             with c2:
-                st.markdown(chart_title_css.format("项目平均得分"), unsafe_allow_html=True)
+                st.markdown(
+                    chart_title_css.format("项目平均得分"), unsafe_allow_html=True
+                )
                 generate_project_score_chart(df)
             with c3:
-                st.markdown(chart_title_css.format("开发者提交统计"), unsafe_allow_html=True)
+                st.markdown(
+                    chart_title_css.format("开发者提交统计"), unsafe_allow_html=True
+                )
                 generate_author_count_chart(df)
             with c4:
-                st.markdown(chart_title_css.format("开发者平均得分"), unsafe_allow_html=True)
+                st.markdown(
+                    chart_title_css.format("开发者平均得分"), unsafe_allow_html=True
+                )
                 generate_author_score_chart(df)
             with c5:
-                st.markdown(chart_title_css.format("人员代码变更行数"), unsafe_allow_html=True)
-                if 'additions' in df.columns and 'deletions' in df.columns:
+                st.markdown(
+                    chart_title_css.format("人员代码变更行数"), unsafe_allow_html=True
+                )
+                if "additions" in df.columns and "deletions" in df.columns:
                     generate_author_code_line_chart(df)
                 else:
                     st.info("无法显示代码行数图表：缺少必要的数据列")
             with c6:
-                st.markdown(chart_title_css.format("项目代码变更行数"), unsafe_allow_html=True)
-                if 'additions' in df.columns and 'deletions' in df.columns:
+                st.markdown(
+                    chart_title_css.format("项目代码变更行数"), unsafe_allow_html=True
+                )
+                if "additions" in df.columns and "deletions" in df.columns:
                     generate_project_code_line_chart(df)
                 else:
                     st.info("无法显示代码行数图表：缺少必要的数据列")
 
     # Merge Request 数据展示
-    mr_columns = ["project_name", "author", "source_branch", "target_branch", "updated_at", "commit_messages", "delta",
-                  "score",
-                  "url", 'additions', 'deletions']
+    mr_columns = [
+        "project_name",
+        "author",
+        "source_branch",
+        "target_branch",
+        "updated_at",
+        "commit_messages",
+        "delta",
+        "score",
+        "url",
+        "additions",
+        "deletions",
+    ]
 
     mr_column_config = {
         "project_name": "项目名称",
@@ -649,20 +730,29 @@ def main_page():
             max_value=100,
         ),
         "url": st.column_config.LinkColumn(
-            "操作",
-            max_chars=100,
-            display_text="查看详情"
+            "操作", max_chars=100, display_text="查看详情"
         ),
         "additions": None,
         "deletions": None,
     }
 
-    display_data(mr_tab, ReviewService().get_mr_review_logs, mr_columns, mr_column_config)
+    display_data(
+        mr_tab, ReviewService().get_mr_review_logs, mr_columns, mr_column_config
+    )
 
     # Push 数据展示
     if show_push_tab:
-        push_columns = ["project_name", "author", "branch", "updated_at", "commit_messages", "delta", "score",
-                        'additions', 'deletions']
+        push_columns = [
+            "project_name",
+            "author",
+            "branch",
+            "updated_at",
+            "commit_messages",
+            "delta",
+            "score",
+            "additions",
+            "deletions",
+        ]
 
         push_column_config = {
             "project_name": "项目名称",
@@ -681,7 +771,12 @@ def main_page():
             "deletions": None,
         }
 
-        display_data(push_tab, ReviewService().get_push_review_logs, push_columns, push_column_config)
+        display_data(
+            push_tab,
+            ReviewService().get_push_review_logs,
+            push_columns,
+            push_column_config,
+        )
 
 
 # 应用入口
